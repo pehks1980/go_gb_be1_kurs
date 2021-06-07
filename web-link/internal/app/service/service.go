@@ -1,7 +1,7 @@
 package service
 
 import (
-	"github.com/vlslav/web-broker/internal/pkg/model"
+	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/pkg/model"
 )
 // repo имеет тип интерфейс (2 метода)
 type repo interface {

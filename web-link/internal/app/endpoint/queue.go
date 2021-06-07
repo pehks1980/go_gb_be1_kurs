@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	web_broker "github.com/vlslav/web-broker/pkg/web-broker"
+	web_broker "github.com/pehks1980/go_gb_be1_kurs/web-link/pkg/web-broker"
 )
 // интерфейс очередного сервиса также имеет put get - для работы с файлохранилищем
 // файлохранилище это судя по всему словарь (обьект json в строковом виде)

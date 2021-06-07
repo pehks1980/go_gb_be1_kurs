@@ -12,11 +12,11 @@ import (
 	"syscall"
 	"time"
 
-	"go_gb_be1_kurs/web-link/internal/app/endpoint"
+	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/app/endpoint"
 	// сервис сервера ()
-	"github.com/pehks/web-link/internal/app/service"
+	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/app/service"
 	// репозиторий (хранилище) 1 файло 2 память 3 pg sql(db)
-	"github.com/pehks/web-link/internal/pkg/repository"
+	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/pkg/repository"
 )
 
 

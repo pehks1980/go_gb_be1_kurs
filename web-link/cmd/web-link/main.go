@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"github.com/vlslav/web-broker/internal/app/endpoint"
 	"log"
 	"net"
 	"net/http"

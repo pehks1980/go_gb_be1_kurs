@@ -1,17 +1,16 @@
 package endpoint
 
 import (
-	"net/http"
-
 	"github.com/gorilla/mux"
-	web_broker "github.com/pehks1980/go_gb_be1_kurs/web-link/pkg/web-broker"
+	web_link "github.com/pehks1980/go_gb_be1_kurs/web-link/pkg/web-link"
+	"net/http"
 )
 // интерфейс очередного сервиса также имеет put get - для работы с файлохранилищем
 // файлохранилище это судя по всему словарь (обьект json в строковом виде)
 // у "драйвера хранилища" методы
 type queueSvc interface {
-	Put(req *web_broker.PutValueReq) error // записиать json ключ:значение во хранилище
-	Get(req *web_broker.GetValueReq) (*web_broker.GetValueResp, error) // получить из хранилища значение по ключу
+	Put(req *web_link.PutValueReq) error // записиать json ключ:значение во хранилище
+	Get(req *web_link.GetValueReq) (*web_link.GetValueResp, error) // получить из хранилища значение по ключу
 }
 
 // регистрация роутинга путей типа urls.py для обработки сервером 

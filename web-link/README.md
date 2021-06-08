@@ -1,2 +1,1 @@
-# web-broker
-Демонстрационный вариант типового веб-сервиса для лекции GeekBrains
+# gb_go_be1 beckend 1 final kurs work

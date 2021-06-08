@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"github.com/pehks1980/go_gb_be1_kurs/internal/pkg/model"
+	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/pkg/model"
 )
 
 type RepoIf interface {

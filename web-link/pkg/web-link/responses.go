@@ -1,4 +1,4 @@
-package web_broker
+package web_link
 
 type (
 	GetValueResp struct {

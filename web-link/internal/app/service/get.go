@@ -2,8 +2,7 @@ package service
 
 import (
 	"log"
-
-	web_link "github.com/pehks1980/go_gb_be1_kurs/web-link"
+	web_link "github.com/pehks1980/go_gb_be1_kurs/web-link/pkg/web-link"
 )
 
 func (s *Service) Get(req *web_link.GetValueReq) (*web_link.GetValueResp, error) {
@@ -13,5 +12,5 @@ func (s *Service) Get(req *web_link.GetValueReq) (*web_link.GetValueResp, error)
 		return nil, err
 	}
 
-	return &web_broker.GetValueResp{Value: value}, nil
+	return &web_link.GetValueResp{Value: value}, nil
 }

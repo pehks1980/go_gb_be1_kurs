@@ -133,11 +133,11 @@ func (fr *FileRepo) Get(key string) (model.DataEl, error) {
 func (fr *FileRepo) Put(key string, value model.DataEl) error {
 	fr.RWMutex.Lock()
 	defer fr.RWMutex.Unlock()
-	if _, ok := fr.fileData[key]; !ok {
+/*	if _, ok := fr.fileData[key]; !ok {
 		// key already exists
 		err := fmt.Errorf("link %s dont exist", key)
 		return err
-	}
+	}*/
 	fr.fileData[key] = value
 	// changes needs to be flushed to file
 	err := fr.DumpMapToFile()

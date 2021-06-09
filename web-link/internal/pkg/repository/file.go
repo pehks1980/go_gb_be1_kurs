@@ -2,6 +2,7 @@ package repository
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/pkg/model"
 	"io/ioutil"
 	"log"
@@ -14,6 +15,7 @@ type RepoIf interface {
 	Get(key string) (model.DataEl, error)
 	Put(key string, value model.DataEl) error
 	Del(key string) error
+	List() ([]string, error)
 }
 
 type FileRepo struct {
@@ -35,7 +37,7 @@ func (fr *FileRepo) New (filename string) RepoIf{
 	// todo need to flush file when shutdown server
 	if _, err := os.Stat(filename); err == nil {
 		// path/to/whatever exists
-		fr.FileRepoUnpackToStruct()
+		fileRepo.FileRepoUnpackToStruct()
 	}
 
 	return fileRepo
@@ -45,10 +47,8 @@ func NewFileRepo(fileName string) *FileRepo {
 	return &FileRepo{fileName: fileName}
 }
 
-// DumpMapToFile
+// DumpMapToFile - no lock, as its has been done in upper level
 func (fr *FileRepo) DumpMapToFile() error{
-	fr.RWMutex.Lock()
-	defer fr.RWMutex.Unlock()
 	// to do dump map to file.json
 	// make slice of active links and write it to file
 	var fileDataSlice model.Data
@@ -95,7 +95,10 @@ func (fr *FileRepo) FileRepoUnpackToStruct() error {
 	var fileDataSlice model.Data
 	// we unmarshal our byteArray which contains our
 	// jsonFile's content into 'fileDataSlice' which we defined above
-	json.Unmarshal(byteValue, fileDataSlice)
+	err = json.Unmarshal(byteValue, &fileDataSlice)
+	if err != nil {
+		return err
+	}
 	// quickly populate our file map
 
 	// we iterate through array and make map key shortlink:filedata struct
@@ -111,18 +114,30 @@ func (fr *FileRepo) Get(key string) (model.DataEl, error) {
 	defer fr.RWMutex.RUnlock()
 	// get data needed
 	// retrieve dat string
-	datael := fr.fileData[key]
-	// if its deleted return {}
-	// todo no err!!!!
-	if datael.Active == 0 {
-		return model.DataEl{}, nil
+
+	if datael, ok := fr.fileData[key]; ok {
+		if datael.Active == 0 {
+			// deleted already
+			err := fmt.Errorf("link deleted already")
+			return model.DataEl{}, err
+		}
+
+		return datael, nil
+		//no such key
+
 	}
-	return datael, nil
+	err := fmt.Errorf("No such link")
+	return model.DataEl{}, err
 }
 
 func (fr *FileRepo) Put(key string, value model.DataEl) error {
 	fr.RWMutex.Lock()
 	defer fr.RWMutex.Unlock()
+	if _, ok := fr.fileData[key]; !ok {
+		// key already exists
+		err := fmt.Errorf("link %s dont exist", key)
+		return err
+	}
 	fr.fileData[key] = value
 	// changes needs to be flushed to file
 	err := fr.DumpMapToFile()
@@ -137,8 +152,30 @@ func (fr *FileRepo) Del(key string) error {
 	// TODO: impl
 	fr.RWMutex.Lock()
 	defer fr.RWMutex.Unlock()
-	datael := fr.fileData[key]
-	datael.Active = 0
-	fr.fileData[key] = datael
-	return nil
+	if datael, ok := fr.fileData[key]; ok {
+		datael.Active = 0
+		fr.fileData[key] = datael
+		// dump data to file straight away
+		err := fr.DumpMapToFile()
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+	err := fmt.Errorf("delete error key %s don't exist", key)
+	return err
+}
+
+func (fr *FileRepo) List() ([]string, error) {
+	fr.RWMutex.RLock()
+	defer fr.RWMutex.RUnlock()
+	// get data needed
+	// retrieve list of keys as []string
+	var keys []string
+	for k, val := range fr.fileData {
+		if val.Active == 1 {
+			keys = append(keys, k)
+		}
+	}
+	return keys, nil
 }

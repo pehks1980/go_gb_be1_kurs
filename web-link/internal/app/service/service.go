@@ -9,6 +9,7 @@ type repo interface {
 	Get(key string) (model.DataEl, error)
 	Put(key string, value model.DataEl) error
 	Del(key string) error
+	List() ([]string, error)
 }
 // service имеет тип структура
 // содержит член repo
@@ -48,4 +49,14 @@ func (s *Service) Del(key string) error {
 	}
 
 	return nil
+}
+
+func (s *Service) List() ([]string, error){
+	items, err := s.repo.List()
+	if err != nil {
+		log.Printf("service/List: get from repo err: %v", err)
+		return nil, err
+	}
+
+	return items, nil
 }

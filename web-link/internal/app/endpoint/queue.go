@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/gorilla/mux"
 	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/pkg/model"
+	"log"
 	"net/http"
 	"time"
 )
@@ -22,7 +23,13 @@ type queueSvc interface {
 func RegisterPublicHTTP(queueSvc queueSvc) *mux.Router {
 	// mux golrilla почему он? не знаю, - прикольное название, простота работы..
 	r := mux.NewRouter()
-	//links crud
+	// JWT authorization
+	r.HandleFunc("user/auth", postAuth(queueSvc)).Methods(http.MethodPost)
+	r.HandleFunc("token/refresh", postTokenRefresh(queueSvc)).Methods(http.MethodPost)
+	// main function
+	r.HandleFunc("/shortopen/{shortlink}", getShortOpen(queueSvc)).Methods(http.MethodGet)
+	r.HandleFunc("/shortstat/{shortlink}", getShortStat(queueSvc)).Methods(http.MethodGet)
+	// links crud
 	r.HandleFunc("/links", postToQueue(queueSvc)).Methods(http.MethodPost)
 	r.HandleFunc("/links/all", getFromQueue(queueSvc)).Methods(http.MethodGet)
 	r.HandleFunc("/links/{shortlink}", putToQueue(queueSvc)).Methods(http.MethodPut)
@@ -31,7 +38,15 @@ func RegisterPublicHTTP(queueSvc queueSvc) *mux.Router {
 	return r
 }
 
-//del
+func postTokenRefresh(svc queueSvc) func(http.ResponseWriter, *http.Request) {
+
+}
+
+func postAuth(svc queueSvc) func(http.ResponseWriter, *http.Request) {
+
+}
+
+// del
 func delFromQueue(queueSvc queueSvc) http.HandlerFunc {
 	return func(w http.ResponseWriter, request *http.Request) {
 
@@ -157,5 +172,71 @@ func getFromQueue(queueSvc queueSvc) http.HandlerFunc {
 			return
 		}
 		//log.Println(getElement)
+	}
+}
+
+func getShortStat(queueSvc queueSvc) http.HandlerFunc {
+	return func(w http.ResponseWriter, request *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		var datajson = model.Data{}
+
+		storageKeys, err := queueSvc.List()
+		if err != nil {
+			http.Error(w, "Cannot read List of keys from repo", http.StatusBadRequest)
+		}
+		params := mux.Vars(request)
+		shortUrl := params["shortlink"]
+		for _, storageKey := range storageKeys {
+			if storageKey == shortUrl {
+				getElement, err := queueSvc.Get(storageKey)
+				if err != nil {
+					http.Error(w, "Cannot read from repo", http.StatusBadRequest)
+					return
+				}
+				datajson.Data = append(datajson.Data, getElement)
+				err = json.NewEncoder(w).Encode(datajson)
+				if err != nil {
+					return
+				}
+				return
+			}
+		}
+
+		http.Error(w, "Cannot find link", http.StatusBadRequest)
+		//log.Println(getElement)
+	}
+}
+
+func getShortOpen(queueSvc queueSvc) http.HandlerFunc {
+	return func(w http.ResponseWriter, request *http.Request) {
+
+		w.Header().Set("Content-Type", "application/json")
+
+		storageKeys, err := queueSvc.List()
+		if err != nil {
+			http.Error(w, "Cannot read List of keys from repo", http.StatusBadRequest)
+		}
+		params := mux.Vars(request)
+		shortUrl := params["shortlink"]
+
+		for _, storageKey := range storageKeys {
+			if storageKey == shortUrl {
+				// found key
+				// get data
+				// update data
+				// redir to real link
+				getElement, err := queueSvc.Get(storageKey)
+				if err != nil {
+					http.Error(w, "Cannot read from repo", http.StatusBadRequest)
+				}
+				getElement.Redirs++
+				err = queueSvc.Put(storageKey, getElement)
+				log.Printf("opening link %s (short is %s) redirs(++) %d \n", getElement.URL, getElement.Shorturl, getElement.Redirs)
+				return // todo redir here
+			}
+
+		}
+		http.Error(w, "Cannot find link", http.StatusBadRequest)
+
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 )
+
 // интерфейс очередного сервиса также имеет put get - для работы с файлохранилищем
 // файлохранилище это судя по всему словарь (обьект json в строковом виде)
 // у "драйвера хранилища" методы
@@ -17,15 +18,15 @@ type queueSvc interface {
 	List() ([]string, error)
 }
 
-// регистрация роутинга путей типа urls.py для обработки сервером 
+// регистрация роутинга путей типа urls.py для обработки сервером
 func RegisterPublicHTTP(queueSvc queueSvc) *mux.Router {
 	// mux golrilla почему он? не знаю, - прикольное название, простота работы..
 	r := mux.NewRouter()
-    //links crud
-	r.HandleFunc("/links", postToQueue(queueSvc) ).Methods(http.MethodPost)
-	r.HandleFunc("/links/all", getFromQueue(queueSvc) ).Methods(http.MethodGet)
-	r.HandleFunc("/links/{shortlink}", putToQueue(queueSvc) ).Methods(http.MethodPut)
-	r.HandleFunc("/links/{shortlink}", delFromQueue(queueSvc) ).Methods(http.MethodDelete)
+	//links crud
+	r.HandleFunc("/links", postToQueue(queueSvc)).Methods(http.MethodPost)
+	r.HandleFunc("/links/all", getFromQueue(queueSvc)).Methods(http.MethodGet)
+	r.HandleFunc("/links/{shortlink}", putToQueue(queueSvc)).Methods(http.MethodPut)
+	r.HandleFunc("/links/{shortlink}", delFromQueue(queueSvc)).Methods(http.MethodDelete)
 
 	return r
 }
@@ -121,6 +122,7 @@ func postToQueue(queueSvc queueSvc) http.HandlerFunc {
 
 	}
 }
+
 // вьюха для get
 func getFromQueue(queueSvc queueSvc) http.HandlerFunc {
 	return func(w http.ResponseWriter, request *http.Request) {
@@ -136,7 +138,7 @@ func getFromQueue(queueSvc queueSvc) http.HandlerFunc {
 			http.Error(w, "Cannot read List of keys from repo", http.StatusBadRequest)
 		}
 
-		for _, storageKey := range storageKeys{
+		for _, storageKey := range storageKeys {
 			getElement, err := queueSvc.Get(storageKey)
 			if err != nil {
 				http.Error(w, "Cannot read from repo", http.StatusBadRequest)

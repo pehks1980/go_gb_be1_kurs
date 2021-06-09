@@ -24,7 +24,7 @@ type FileRepo struct {
 	fileData map[string]model.DataEl
 }
 
-func (fr *FileRepo) New (filename string) RepoIf{
+func (fr *FileRepo) New(filename string) RepoIf {
 	// todo init
 
 	fileRepo := &FileRepo{
@@ -48,7 +48,7 @@ func NewFileRepo(fileName string) *FileRepo {
 }
 
 // DumpMapToFile - no lock, as its has been done in upper level
-func (fr *FileRepo) DumpMapToFile() error{
+func (fr *FileRepo) DumpMapToFile() error {
 	// to do dump map to file.json
 	// make slice of active links and write it to file
 	var fileDataSlice model.Data
@@ -56,7 +56,7 @@ func (fr *FileRepo) DumpMapToFile() error{
 	for _, value := range fr.fileData {
 		// stripe all not Active when dumping
 		if value.Active == 1 {
-			fileDataSlice.Data = append (fileDataSlice.Data, value)
+			fileDataSlice.Data = append(fileDataSlice.Data, value)
 		}
 	}
 
@@ -102,7 +102,7 @@ func (fr *FileRepo) FileRepoUnpackToStruct() error {
 	// quickly populate our file map
 
 	// we iterate through array and make map key shortlink:filedata struct
-	for _, datael := range fileDataSlice.Data{
+	for _, datael := range fileDataSlice.Data {
 		fr.fileData[datael.Shorturl] = datael
 	}
 

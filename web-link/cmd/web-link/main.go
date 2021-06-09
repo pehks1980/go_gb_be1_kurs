@@ -18,7 +18,6 @@ import (
 	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/pkg/repository"
 )
 
-
 // главная петля
 func main() {
 

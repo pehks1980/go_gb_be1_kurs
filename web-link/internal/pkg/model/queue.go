@@ -5,12 +5,13 @@ import "time"
 type Data struct {
 	Data []DataEl `json:"data"`
 }
+
 // Data элемент строки файла json
 type DataEl struct {
-	ID int 				`json:"id"`
-	URL string 			`json:"url"`
-	Shorturl string 		`json:"shorturl"`
-	Datetime time.Time 		`json:"datetime"`
-	Active int  			`json:"active"`
-	Redirs int 			`json:"redirs"`
+	ID       int       `json:"id"`
+	URL      string    `json:"url"`
+	Shorturl string    `json:"shorturl"`
+	Datetime time.Time `json:"datetime"`
+	Active   int       `json:"active"`
+	Redirs   int       `json:"redirs"`
 }

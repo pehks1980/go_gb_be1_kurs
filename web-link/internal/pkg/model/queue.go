@@ -8,7 +8,7 @@ type Data struct {
 
 // Data элемент строки файла json
 type DataEl struct {
-	ID       int       `json:"id"`
+	UID      string    `json:"uid"`
 	URL      string    `json:"url"`
 	Shorturl string    `json:"shorturl"`
 	Datetime time.Time `json:"datetime"`

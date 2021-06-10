@@ -12,10 +12,10 @@ import (
 
 type RepoIf interface {
 	New(filename string) RepoIf
-	Get(key string) (model.DataEl, error)
-	Put(key string, value model.DataEl) error
-	Del(key string) error
-	List() ([]string, error)
+	Get(uid, key string) (model.DataEl, error)
+	Put(uid, key string, value model.DataEl) error
+	Del(uid, key string) error
+	List(uid string) ([]string, error)
 }
 
 type FileRepo struct {
@@ -101,20 +101,21 @@ func (fr *FileRepo) FileRepoUnpackToStruct() error {
 	}
 	// quickly populate our file map
 
-	// we iterate through array and make map key shortlink:filedata struct
+	// we iterate through array and make map key UID:shortlink:filedata struct
 	for _, datael := range fileDataSlice.Data {
-		fr.fileData[datael.Shorturl] = datael
+		key := datael.UID + ":" + datael.Shorturl
+		fr.fileData[key] = datael
 	}
 
 	return nil
 }
 
-func (fr *FileRepo) Get(key string) (model.DataEl, error) {
+func (fr *FileRepo) Get(uid, key string) (model.DataEl, error) {
 	fr.RWMutex.RLock()
 	defer fr.RWMutex.RUnlock()
 	// get data needed
 	// retrieve dat string
-
+	key = uid + ":" + key
 	if datael, ok := fr.fileData[key]; ok {
 		if datael.Active == 0 {
 			// deleted already
@@ -123,14 +124,13 @@ func (fr *FileRepo) Get(key string) (model.DataEl, error) {
 		}
 
 		return datael, nil
-		//no such key
 
 	}
 	err := fmt.Errorf("No such link")
 	return model.DataEl{}, err
 }
 
-func (fr *FileRepo) Put(key string, value model.DataEl) error {
+func (fr *FileRepo) Put(uid, key string, value model.DataEl) error {
 	fr.RWMutex.Lock()
 	defer fr.RWMutex.Unlock()
 /*	if _, ok := fr.fileData[key]; !ok {
@@ -138,6 +138,7 @@ func (fr *FileRepo) Put(key string, value model.DataEl) error {
 		err := fmt.Errorf("link %s dont exist", key)
 		return err
 	}*/
+	key = uid + ":" + key
 	fr.fileData[key] = value
 	// changes needs to be flushed to file
 	err := fr.DumpMapToFile()
@@ -148,10 +149,11 @@ func (fr *FileRepo) Put(key string, value model.DataEl) error {
 }
 
 // Del - mark Active = 0 to 'delete'
-func (fr *FileRepo) Del(key string) error {
+func (fr *FileRepo) Del(uid, key string) error {
 	// TODO: impl
 	fr.RWMutex.Lock()
 	defer fr.RWMutex.Unlock()
+	key = uid + ":" + key
 	if datael, ok := fr.fileData[key]; ok {
 		datael.Active = 0
 		fr.fileData[key] = datael
@@ -166,15 +168,15 @@ func (fr *FileRepo) Del(key string) error {
 	return err
 }
 
-func (fr *FileRepo) List() ([]string, error) {
+func (fr *FileRepo) List(uid string) ([]string, error) {
 	fr.RWMutex.RLock()
 	defer fr.RWMutex.RUnlock()
 	// get data needed
 	// retrieve list of keys as []string
 	var keys []string
-	for k, val := range fr.fileData {
-		if val.Active == 1 {
-			keys = append(keys, k)
+	for _, val := range fr.fileData {
+		if val.Active == 1 && val.UID == uid {
+			keys = append (keys, val.Shorturl)
 		}
 	}
 	return keys, nil

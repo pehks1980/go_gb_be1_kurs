@@ -7,10 +7,10 @@ import (
 
 // repo имеет тип интерфейс (2 метода)
 type repo interface {
-	Get(key string) (model.DataEl, error)
-	Put(key string, value model.DataEl) error
-	Del(key string) error
-	List() ([]string, error)
+	Get(uid, key string) (model.DataEl, error)
+	Put(uid, key string, value model.DataEl) error
+	Del(uid, key string) error
+	List(uid string) ([]string, error)
 }
 
 // service имеет тип структура
@@ -26,8 +26,8 @@ func New(repo repo) *Service {
 	return &Service{repo: repo}
 }
 
-func (s *Service) Put(key string, value model.DataEl) error {
-	if err := s.repo.Put(key, value); err != nil {
+func (s *Service) Put(uid, key string, value model.DataEl) error {
+	if err := s.repo.Put(uid, key, value); err != nil {
 		log.Printf("service/Put: put repo err: %v", err)
 		return err
 	}
@@ -35,8 +35,8 @@ func (s *Service) Put(key string, value model.DataEl) error {
 	return nil
 }
 
-func (s *Service) Get(key string) (model.DataEl, error) {
-	value, err := s.repo.Get(key)
+func (s *Service) Get(uid, key string) (model.DataEl, error) {
+	value, err := s.repo.Get(uid, key)
 	if err != nil {
 		log.Printf("service/Get: get from repo err: %v", err)
 		return model.DataEl{}, err
@@ -45,8 +45,8 @@ func (s *Service) Get(key string) (model.DataEl, error) {
 	return value, nil
 }
 
-func (s *Service) Del(key string) error {
-	if err := s.repo.Del(key); err != nil {
+func (s *Service) Del(uid, key string) error {
+	if err := s.repo.Del(uid, key); err != nil {
 		log.Printf("service/Del: del repo err: %v", err)
 		return err
 	}
@@ -54,8 +54,8 @@ func (s *Service) Del(key string) error {
 	return nil
 }
 
-func (s *Service) List() ([]string, error) {
-	items, err := s.repo.List()
+func (s *Service) List(uid string) ([]string, error) {
+	items, err := s.repo.List(uid)
 	if err != nil {
 		log.Printf("service/List: get from repo err: %v", err)
 		return nil, err

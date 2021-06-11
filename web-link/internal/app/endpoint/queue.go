@@ -58,20 +58,29 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func GenJWTWithClaims(uidtext string) (string, error) {
+func GenJWTWithClaims(uidtext string, token_type int) (string, error) {
 	mySigningKey := []byte("AllYourBase")
 
 	type MyCustomClaims struct {
 		Uid string `json:"uid"`
 		jwt.StandardClaims
 	}
+	// type 0  access token is valid for 24 hours
+	var time_expiry = time.Now().Add(time.Hour * 24).Unix()
+	var issuer = "weblink_access"
+
+	if token_type == 1 {
+		// refresh token type 1 is valid for 5 days
+		time_expiry = time.Now().Add(time.Hour * 24 * 5).Unix()
+		issuer = "weblink_refresh"
+	}
 
 	// Create the Claims
 	claims := MyCustomClaims{
 		uidtext,
 		jwt.StandardClaims{
-			ExpiresAt: time.Now().Add(time.Hour * 24).Unix(), // access token will expire in 24h after creating
-			Issuer:    "weblink",
+			ExpiresAt: time_expiry, // access token will expire in 24h after creating
+			Issuer:    issuer,
 		},
 	}
 
@@ -150,9 +159,40 @@ func JWTCheckMiddleware(next http.Handler) http.Handler {
 }
 
 func postTokenRefresh(svc queueSvc) func(http.ResponseWriter, *http.Request) {
- return nil
+	return func(w http.ResponseWriter, request *http.Request) {
+		type TokenAnswer struct {
+			Access string `json:"accessToken"`
+			Refresh string `json:"refreshToken"`
+		}
+
+		props, _ := request.Context().Value("props").(jwt.MapClaims)
+		//fmt.Println(props["uid"])
+		UID := fmt.Sprintf("%v", props["uid"])
+		Issuer := fmt.Sprintf("%v", props["iss"])
+
+		if Issuer != "weblink_refresh" {
+			http.Error(w, "Please provide refresh token, or authenticate again", http.StatusBadRequest)
+			return
+		}
+
+		token_access, _:= GenJWTWithClaims(UID,0)
+		token_refresh, _:= GenJWTWithClaims(UID,1)
+
+		var jsonTokens = TokenAnswer {
+			Access:  token_access,
+			Refresh: token_refresh,
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		err := json.NewEncoder(w).Encode(jsonTokens)
+		if err != nil {
+			return
+		}
+
+	}
 }
 
+// autheticate and give authorization token
 func postAuth(svc queueSvc) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, request *http.Request) {
 
@@ -182,11 +222,12 @@ func postAuth(svc queueSvc) func(http.ResponseWriter, *http.Request) {
 					return
 				}
 
-				token, _:= GenJWTWithClaims(jsonPostRq.Uid)
+				token_access, _:= GenJWTWithClaims(jsonPostRq.Uid,0)
+				token_refresh, _:= GenJWTWithClaims(jsonPostRq.Uid,1)
 
 				var jsonTokens = TokenAnswer {
-					Access:  token,
-					Refresh: "",
+					Access:  token_access,
+					Refresh: token_refresh,
 				}
 
 				w.Header().Set("Content-Type", "application/json")
@@ -301,6 +342,11 @@ func postToQueue(queueSvc queueSvc) http.HandlerFunc {
 		//fmt.Println(props["uid"])
 		UID := fmt.Sprintf("%v", props["uid"])
 
+		storageKeys, err := queueSvc.List(UID)
+		if err != nil {
+			http.Error(w, "Cannot read List of keys from repo", http.StatusBadRequest)
+		}
+
 		switch contentType {
 		case "application/json":
 
@@ -310,7 +356,13 @@ func postToQueue(queueSvc queueSvc) http.HandlerFunc {
 				return
 			}
 			element.Datetime = time.Now()
-			//get user name from ctx
+			// check if this key already exists
+			for _, storageKey := range storageKeys {
+				if storageKey == element.Shorturl {
+					http.Error(w, "This shortlink already exists", http.StatusBadRequest)
+					return
+				}
+			}
 			element.UID = UID
 			err = queueSvc.Put(UID, element.Shorturl, element)
 			if err != nil {

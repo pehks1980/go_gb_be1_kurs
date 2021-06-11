@@ -131,8 +131,19 @@ func JWTCheckMiddleware(next http.Handler) http.Handler {
 					ctx := context.WithValue(r.Context(), "props", claims)
 					// Access context values in handlers like this
 					// props, _ := r.Context().Value("props").(jwt.MapClaims)
-					next.ServeHTTP(w, r.WithContext(ctx))
-					return
+					if r.RequestURI != "/token/refresh" {
+						next.ServeHTTP(w, r.WithContext(ctx))
+						return
+					} else {
+						//allow only refresh tokens to go to /token/refresh endpoint
+						//check type of token iss should be weblink_refresh
+						iss := fmt.Sprintf("%v", claims["iss"])
+						if iss == "weblink_refresh"{
+							next.ServeHTTP(w, r.WithContext(ctx))
+							return
+						}
+					}
+
 				} else {
 					fmt.Println(err)
 					w.WriteHeader(http.StatusUnauthorized)

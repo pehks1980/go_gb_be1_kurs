@@ -132,8 +132,12 @@ func JWTCheckMiddleware(next http.Handler) http.Handler {
 					// Access context values in handlers like this
 					// props, _ := r.Context().Value("props").(jwt.MapClaims)
 					if r.RequestURI != "/token/refresh" {
-						next.ServeHTTP(w, r.WithContext(ctx))
-						return
+						// allow access to all API nodes with access token
+						iss := fmt.Sprintf("%v", claims["iss"])
+						if iss == "weblink_access"{
+							next.ServeHTTP(w, r.WithContext(ctx))
+							return
+						}
 					} else {
 						//allow only refresh tokens to go to /token/refresh endpoint
 						//check type of token iss should be weblink_refresh
@@ -459,7 +463,7 @@ func getShortStat(queueSvc queueSvc) http.HandlerFunc {
 func getShortOpen(queueSvc queueSvc) http.HandlerFunc {
 	return func(w http.ResponseWriter, request *http.Request) {
 
-		w.Header().Set("Content-Type", "application/json")
+		//w.Header().Set("Content-Type", "application/json")
 		//get uid from JWT token
 		props, _ := request.Context().Value("props").(jwt.MapClaims)
 		//fmt.Println(props["uid"])
@@ -485,7 +489,8 @@ func getShortOpen(queueSvc queueSvc) http.HandlerFunc {
 				getElement.Redirs++
 				err = queueSvc.Put(UID, storageKey, getElement)
 				log.Printf("opening link %s (short is %s) redirs(++) %d \n", getElement.URL, getElement.Shorturl, getElement.Redirs)
-				return // todo redir here
+				http.Redirect(w, request, getElement.URL, http.StatusSeeOther)
+				return // todo redir here linke this? <a href="/shortopen/www.mail.ru">See Other</a>.
 			}
 
 		}

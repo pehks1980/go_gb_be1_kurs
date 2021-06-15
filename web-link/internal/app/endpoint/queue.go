@@ -144,18 +144,20 @@ func JWTCheckMiddleware(next http.Handler) http.Handler {
 							return
 						}
 						ResponseApiError(w, 7, http.StatusUnauthorized)
+						return
 					}
 
 				} else {
 					log.Printf("%v \n", err)
 					ResponseApiError(w, 2, http.StatusUnauthorized)
+					return
 				}
 
 			} else if ve, ok := err.(*jwt.ValidationError); ok {
 				if ve.Errors&(jwt.ValidationErrorExpired|jwt.ValidationErrorNotValidYet) != 0 {
 					log.Printf("Token is either expired or not active yet %v", err)
 					ResponseApiError(w, 1, http.StatusUnauthorized)
-
+					return
 				}
 			}
 		}

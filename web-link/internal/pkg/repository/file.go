@@ -136,7 +136,7 @@ func (fr *FileRepo) Get(uid, key string) (model.DataEl, error) {
 func (fr *FileRepo) Put(uid, key string, value model.DataEl) error {
 	fr.RWMutex.Lock()
 	defer fr.RWMutex.Unlock()
-/*	if _, ok := fr.fileData[key]; !ok {
+	/*	if _, ok := fr.fileData[key]; !ok {
 		// key already exists
 		err := fmt.Errorf("link %s dont exist", key)
 		return err
@@ -154,7 +154,6 @@ func (fr *FileRepo) Put(uid, key string, value model.DataEl) error {
 
 // Del - mark Active = 0 to 'delete'
 func (fr *FileRepo) Del(uid, key string) error {
-	// TODO: impl
 	fr.RWMutex.Lock()
 	defer fr.RWMutex.Unlock()
 	key = uid + ":" + key
@@ -181,7 +180,7 @@ func (fr *FileRepo) List(uid string) ([]string, error) {
 	var keys []string
 	for _, val := range fr.fileData {
 		if val.Active == 1 && val.UID == uid {
-			keys = append (keys, val.Shorturl)
+			keys = append(keys, val.Shorturl)
 		}
 	}
 	return keys, nil

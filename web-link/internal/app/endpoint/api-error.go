@@ -18,9 +18,9 @@ type ErrorEl struct {
 
 var (
 	APIErrorList = map[uint64]string {
-		1: "Token has expired time",    //# ошибка поиска токена в headers
-		2: "Unknown token",                 //# не авторизован на сервере
-		3: "Access token is lost",         // # не передан токен в headers
+		1: "Token has expired time",
+		2: "Unknown token",
+		3: "Access/Refresh token is lost",
 		4: "The shortlink name must be provided.",
 		5: "The shortlink with the specified name already exists",
 		6: "The shortlink with the specified name does not exist",

@@ -2,6 +2,7 @@ package model
 
 import "time"
 
+// Data json array
 type Data struct {
 	Data []DataEl `json:"data"`
 }

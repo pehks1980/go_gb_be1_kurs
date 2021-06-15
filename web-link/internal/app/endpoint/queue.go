@@ -97,7 +97,7 @@ func GenJWTWithClaims(uidtext string, token_type int) (string, error) {
 func JWTCheckMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		if r.RequestURI == "/user/auth"{
+		if r.RequestURI == "/user/auth" {
 			//bypass jwt check when authenticating
 			next.ServeHTTP(w, r)
 			return
@@ -106,9 +106,8 @@ func JWTCheckMiddleware(next http.Handler) http.Handler {
 		authHeader := strings.Split(r.Header.Get("Authorization"), "Bearer ")
 
 		if len(authHeader) != 2 {
-			fmt.Println("Malformed token")
-			w.WriteHeader(http.StatusUnauthorized)
-			w.Write([]byte("Malformed Token"))
+			ResponseApiError(w, 2, http.StatusUnauthorized)
+			return
 		} else {
 			jwtToken := authHeader[1]
 
@@ -119,14 +118,12 @@ func JWTCheckMiddleware(next http.Handler) http.Handler {
 				if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 					return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
 				}
-				//SECRETKEY := "MYjwtKEY"
-
 				SECRETKEY := "AllYourBase"
 				return []byte(SECRETKEY), nil
 			})
 
 			if token.Valid {
-				fmt.Println("You look nice today")
+				//fmt.Println("You look nice today")
 				if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
 					ctx := context.WithValue(r.Context(), "props", claims)
 					// Access context values in handlers like this
@@ -134,7 +131,7 @@ func JWTCheckMiddleware(next http.Handler) http.Handler {
 					if r.RequestURI != "/token/refresh" {
 						// allow access to all API nodes with access token
 						iss := fmt.Sprintf("%v", claims["iss"])
-						if iss == "weblink_access"{
+						if iss == "weblink_access" {
 							next.ServeHTTP(w, r.WithContext(ctx))
 							return
 						}
@@ -142,41 +139,34 @@ func JWTCheckMiddleware(next http.Handler) http.Handler {
 						//allow only refresh tokens to go to /token/refresh endpoint
 						//check type of token iss should be weblink_refresh
 						iss := fmt.Sprintf("%v", claims["iss"])
-						if iss == "weblink_refresh"{
+						if iss == "weblink_refresh" {
 							next.ServeHTTP(w, r.WithContext(ctx))
 							return
 						}
+						ResponseApiError(w, 7, http.StatusUnauthorized)
 					}
 
 				} else {
-					fmt.Println(err)
-					w.WriteHeader(http.StatusUnauthorized)
-					w.Write([]byte("Unauthorized"))
+					log.Printf("%v \n", err)
+					ResponseApiError(w, 2, http.StatusUnauthorized)
 				}
 
 			} else if ve, ok := err.(*jwt.ValidationError); ok {
-				if ve.Errors&jwt.ValidationErrorMalformed != 0 {
-					fmt.Println("That's not even a token")
-				} else if ve.Errors&(jwt.ValidationErrorExpired|jwt.ValidationErrorNotValidYet) != 0 {
-					// Token is either expired or not active yet
-					fmt.Println("Timing is everything")
-				} else {
-					fmt.Println("Couldn't handle this token:", err)
-				}
-			} else {
-				fmt.Println("Couldn't handle this token:", err)
-			}
+				if ve.Errors&(jwt.ValidationErrorExpired|jwt.ValidationErrorNotValidYet) != 0 {
+					log.Printf("Token is either expired or not active yet %v", err)
+					ResponseApiError(w, 1, http.StatusUnauthorized)
 
-			w.WriteHeader(http.StatusUnauthorized)
-			w.Write([]byte("Unauthorized"))
+				}
+			}
 		}
+		ResponseApiError(w, 3, http.StatusUnauthorized)
 	})
 }
 
 func postTokenRefresh(svc queueSvc) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, request *http.Request) {
 		type TokenAnswer struct {
-			Access string `json:"accessToken"`
+			Access  string `json:"accessToken"`
 			Refresh string `json:"refreshToken"`
 		}
 
@@ -186,14 +176,15 @@ func postTokenRefresh(svc queueSvc) func(http.ResponseWriter, *http.Request) {
 		Issuer := fmt.Sprintf("%v", props["iss"])
 
 		if Issuer != "weblink_refresh" {
-			http.Error(w, "Please provide refresh token, or authenticate again", http.StatusBadRequest)
+			ResponseApiError(w, 7, http.StatusBadRequest)
+			//http.Error(w, "Please provide refresh token, or authenticate again", http.StatusBadRequest)
 			return
 		}
 
-		token_access, _:= GenJWTWithClaims(UID,0)
-		token_refresh, _:= GenJWTWithClaims(UID,1)
+		token_access, _ := GenJWTWithClaims(UID, 0)
+		token_refresh, _ := GenJWTWithClaims(UID, 1)
 
-		var jsonTokens = TokenAnswer {
+		var jsonTokens = TokenAnswer{
 			Access:  token_access,
 			Refresh: token_refresh,
 		}
@@ -212,7 +203,7 @@ func postAuth(svc queueSvc) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, request *http.Request) {
 
 		type TokenAnswer struct {
-			Access string `json:"accessToken"`
+			Access  string `json:"accessToken"`
 			Refresh string `json:"refreshToken"`
 		}
 
@@ -223,41 +214,40 @@ func postAuth(svc queueSvc) func(http.ResponseWriter, *http.Request) {
 		contentType := request.Header.Get("Content-Type")
 
 		switch contentType {
-			case "application/json":
-				var jsonPostRq = PostJsonRq{}
+		case "application/json":
+			var jsonPostRq = PostJsonRq{}
 
-				err := json.NewDecoder(request.Body).Decode(&jsonPostRq)
-				if err != nil {
-					http.Error(w, "Unable to unmarshal JSON", http.StatusBadRequest)
-					return
-				}
-				// get uid
-				if jsonPostRq.Uid == "" {
-					http.Error(w, "uid nil, please set uid!!!", http.StatusBadRequest)
-					return
-				}
-
-				token_access, _:= GenJWTWithClaims(jsonPostRq.Uid,0)
-				token_refresh, _:= GenJWTWithClaims(jsonPostRq.Uid,1)
-
-				var jsonTokens = TokenAnswer {
-					Access:  token_access,
-					Refresh: token_refresh,
-				}
-
-				w.Header().Set("Content-Type", "application/json")
-				err = json.NewEncoder(w).Encode(jsonTokens)
-				if err != nil {
-					return
-				}
+			err := json.NewDecoder(request.Body).Decode(&jsonPostRq)
+			if err != nil {
+				ResponseApiError(w, 400, http.StatusBadRequest)
 				return
-
-			default:
-				http.Error(w, "Unknown content type", http.StatusBadRequest)
+			}
+			// get uid
+			if jsonPostRq.Uid == "" {
+				ResponseApiError(w, 8, http.StatusBadRequest)
 				return
+			}
+
+			token_access, _ := GenJWTWithClaims(jsonPostRq.Uid, 0)
+			token_refresh, _ := GenJWTWithClaims(jsonPostRq.Uid, 1)
+
+			var jsonTokens = TokenAnswer{
+				Access:  token_access,
+				Refresh: token_refresh,
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			err = json.NewEncoder(w).Encode(jsonTokens)
+			if err != nil {
+				return
+			}
+			return
+
+		default:
+			ResponseApiError(w, 8, http.StatusBadRequest)
+			return
 
 		}
-
 
 	}
 }
@@ -265,81 +255,49 @@ func postAuth(svc queueSvc) func(http.ResponseWriter, *http.Request) {
 // del
 func delFromQueue(queueSvc queueSvc) http.HandlerFunc {
 	return func(w http.ResponseWriter, request *http.Request) {
-		//get uid from JWT token
-		props, _ := request.Context().Value("props").(jwt.MapClaims)
-		//fmt.Println(props["uid"])
-		UID := fmt.Sprintf("%v", props["uid"])
-
-		storageKeys, err := queueSvc.List(UID)
-		if err != nil {
-			http.Error(w, "Unable to get List", http.StatusBadRequest)
+		w.Header().Set("Content-Type", "application/json")
+		if UID, storageKey, res := validateRequestShortLink(w, request, queueSvc); res == true {
+			//found key, delete it
+			err := queueSvc.Del(UID, storageKey)
+			if err != nil {
+				ResponseApiError(w, 10, http.StatusBadGateway)
+			}
 			return
 		}
-
-		params := mux.Vars(request)
-		shortUrl := params["shortlink"]
-		for _, key := range storageKeys{
-			if key == shortUrl {
-				//found key, delete it
-				err := queueSvc.Del(UID, shortUrl)
-				if err != nil {
-					http.Error(w, "Cannot write to repo", http.StatusBadRequest)
-				}
-
-				return
-			}
-		}
-		// key not found
-		http.Error(w, "key is not exist", http.StatusBadRequest)
-		return
 
 	}
 }
 
-//put
+// put
 func putToQueue(queueSvc queueSvc) http.HandlerFunc {
 	return func(w http.ResponseWriter, request *http.Request) {
 		var element = model.DataEl{}
 		contentType := request.Header.Get("Content-Type")
-
-		//get uid from JWT token
-		props, _ := request.Context().Value("props").(jwt.MapClaims)
-		//fmt.Println(props["uid"])
-		UID := fmt.Sprintf("%v", props["uid"])
+		w.Header().Set("Content-Type", "application/json")
 
 		switch contentType {
 		case "application/json":
-			storageKeys, err := queueSvc.List(UID)
-			if err != nil {
-				http.Error(w, "Unable to get List", http.StatusBadRequest)
+
+			if UID, _, res := validateRequestShortLink(w, request, queueSvc); res == true {
+				//found key, work with body
+				err := json.NewDecoder(request.Body).Decode(&element)
+				if err != nil {
+					ResponseApiError(w, 9, http.StatusBadRequest)
+					return
+				}
+				element.Datetime = time.Now()
+				element.UID = UID
+				//looks ok, update storage
+				err = queueSvc.Put(UID, element.Shorturl, element)
+				if err != nil {
+					ResponseApiError(w, 10, http.StatusBadGateway)
+					//http.Error(w, "Cannot write to repo", http.StatusBadRequest)
+				}
 				return
 			}
 
-			params := mux.Vars(request)
-			shortUrl := params["shortlink"]
-			for _, key := range storageKeys{
-				if key == shortUrl {
-					//found key, work with body
-					err = json.NewDecoder(request.Body).Decode(&element)
-					if err != nil {
-						http.Error(w, "Unable to unmarshal JSON", http.StatusBadRequest)
-						return
-					}
-					element.Datetime = time.Now()
-					element.UID = UID
-					//looks ok, update storage
-					err = queueSvc.Put(UID, element.Shorturl, element)
-					if err != nil {
-						http.Error(w, "Cannot write to repo", http.StatusBadRequest)
-					}
-					return
-				}
-			}
-			http.Error(w, "key is not exist", http.StatusBadRequest)
-			return
-
 		default:
-			http.Error(w, "Unknown content type", http.StatusBadRequest)
+			ResponseApiError(w, 9, http.StatusBadRequest)
 			return
 		}
 
@@ -351,41 +309,40 @@ func postToQueue(queueSvc queueSvc) http.HandlerFunc {
 	return func(w http.ResponseWriter, request *http.Request) {
 		var element = model.DataEl{}
 		contentType := request.Header.Get("Content-Type")
-
-		//get uid from JWT token
-		props, _ := request.Context().Value("props").(jwt.MapClaims)
-		//fmt.Println(props["uid"])
-		UID := fmt.Sprintf("%v", props["uid"])
-
-		storageKeys, err := queueSvc.List(UID)
-		if err != nil {
-			http.Error(w, "Cannot read List of keys from repo", http.StatusBadRequest)
-		}
+		w.Header().Set("Content-Type", "application/json")
 
 		switch contentType {
 		case "application/json":
-
-			err := json.NewDecoder(request.Body).Decode(&element)
+			storageKeys, UID, err := getUserStorageKeys(request, queueSvc)
 			if err != nil {
-				http.Error(w, "Unable to unmarshal JSON", http.StatusBadRequest)
+				ResponseApiError(w, 10, http.StatusBadGateway)
+				return
+				//http.Error(w, "Cannot read List of keys from repo", http.StatusBadRequest)
+			}
+
+			err = json.NewDecoder(request.Body).Decode(&element)
+			if err != nil {
+				ResponseApiError(w, 9, http.StatusBadRequest)
 				return
 			}
 			element.Datetime = time.Now()
 			// check if this key already exists
 			for _, storageKey := range storageKeys {
 				if storageKey == element.Shorturl {
-					http.Error(w, "This shortlink already exists", http.StatusBadRequest)
+					ResponseApiError(w, 5, http.StatusBadRequest)
+					//http.Error(w, "This shortlink already exists", http.StatusBadRequest)
 					return
 				}
 			}
 			element.UID = UID
 			err = queueSvc.Put(UID, element.Shorturl, element)
 			if err != nil {
-				http.Error(w, "Cannot write to repo", http.StatusBadRequest)
+				ResponseApiError(w, 10, http.StatusBadGateway)
+				//http.Error(w, "Cannot write to repo", http.StatusBadRequest)
 			}
 
 		default:
-			http.Error(w, "Unknown content type", http.StatusBadRequest)
+			ResponseApiError(w, 9, http.StatusBadRequest)
 			return
 		}
 
@@ -398,20 +355,20 @@ func getFromQueue(queueSvc queueSvc) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		var datajson = model.Data{}
-		//get uid from JWT token
-		props, _ := request.Context().Value("props").(jwt.MapClaims)
-		//fmt.Println(props["uid"])
-		UID := fmt.Sprintf("%v", props["uid"])
 
-		storageKeys, err := queueSvc.List(UID)
+		storageKeys, UID, err := getUserStorageKeys(request, queueSvc)
 		if err != nil {
-			http.Error(w, "Cannot read List of keys from repo", http.StatusBadRequest)
+			ResponseApiError(w, 10, http.StatusBadGateway)
+			///http.Error(w, "Cannot read List of keys from repo", http.StatusBadRequest)
 		}
 
 		for _, storageKey := range storageKeys {
+
 			getElement, err := queueSvc.Get(UID, storageKey)
 			if err != nil {
-				http.Error(w, "Cannot read from repo", http.StatusBadRequest)
+				ResponseApiError(w, 10, http.StatusBadGateway)
+				return
+				//http.Error(w, "Cannot read from repo", http.StatusBadRequest)
 			}
 			datajson.Data = append(datajson.Data, getElement)
 		}
@@ -426,75 +383,97 @@ func getFromQueue(queueSvc queueSvc) http.HandlerFunc {
 
 func getShortStat(queueSvc queueSvc) http.HandlerFunc {
 	return func(w http.ResponseWriter, request *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		var datajson = model.Data{}
-		//get uid from JWT token
-		props, _ := request.Context().Value("props").(jwt.MapClaims)
-		//fmt.Println(props["uid"])
-		UID := fmt.Sprintf("%v", props["uid"])
 
-		storageKeys, err := queueSvc.List(UID)
-		if err != nil {
-			http.Error(w, "Cannot read List of keys from repo", http.StatusBadRequest)
-		}
-		params := mux.Vars(request)
-		shortUrl := params["shortlink"]
-		for _, storageKey := range storageKeys {
-			if storageKey == shortUrl {
-				getElement, err := queueSvc.Get(UID, storageKey)
-				if err != nil {
-					http.Error(w, "Cannot read from repo", http.StatusBadRequest)
-					return
-				}
-				datajson.Data = append(datajson.Data, getElement)
-				err = json.NewEncoder(w).Encode(datajson)
-				if err != nil {
-					return
-				}
+		// check user authorization, get user UID, get key (for this user, check if key exists)
+		// if res - yes then do the action  - give string from repo as json
+		if UID, storageKey, res := validateRequestShortLink(w, request, queueSvc); res == true {
+			w.Header().Set("Content-Type", "application/json")
+			var datajson = model.Data{}
+
+			getElement, err := queueSvc.Get(UID, storageKey)
+			if err != nil {
+				ResponseApiError(w, 10, http.StatusBadGateway)
+				//http.Error(w, "Cannot read from repo", http.StatusBadRequest)
 				return
 			}
+			datajson.Data = append(datajson.Data, getElement)
+			err = json.NewEncoder(w).Encode(datajson)
+			if err != nil {
+				return
+			}
+
 		}
 
-		http.Error(w, "Cannot find link", http.StatusBadRequest)
-		//log.Println(getElement)
 	}
+}
+
+// getUserStorageKeys - get all keys for this user in repo
+func getUserStorageKeys(request *http.Request, queueSvc queueSvc) ([]string, string, error) {
+	props, _ := request.Context().Value("props").(jwt.MapClaims)
+	//fmt.Println(props["uid"])
+	UID := fmt.Sprintf("%v", props["uid"])
+
+	storageKeys, err := queueSvc.List(UID)
+
+	return storageKeys, UID, err
+}
+
+// validateRequestShortLink - валидация shortlink + токен авторизации
+// ошибка валидации вылетает клиенту сама а результат - true ok
+// Эту ф можно применить там где есть этот парам
+func validateRequestShortLink(w http.ResponseWriter, request *http.Request, queueSvc queueSvc) (string, string, bool) {
+
+	storageKeys, UID, err := getUserStorageKeys(request, queueSvc)
+
+	if err != nil {
+		// real error
+		// http.Error(w, "Cannot read List of keys from repo", http.StatusBadRequest)
+		// api error
+		ResponseApiError(w, 10, http.StatusBadGateway)
+		//http.Error(w, "Cannot find link", http.StatusBadRequest)
+		return "", "", false
+	}
+
+	params := mux.Vars(request)
+	shortUrl := params["shortlink"]
+
+	for _, storageKey := range storageKeys {
+		if storageKey == shortUrl {
+			return UID, storageKey, true
+		}
+	}
+
+	ResponseApiError(w, 6, http.StatusBadRequest)
+	return "", "", false
 }
 
 func getShortOpen(queueSvc queueSvc) http.HandlerFunc {
 	return func(w http.ResponseWriter, request *http.Request) {
 
-		//w.Header().Set("Content-Type", "application/json")
-		//get uid from JWT token
-		props, _ := request.Context().Value("props").(jwt.MapClaims)
-		//fmt.Println(props["uid"])
-		UID := fmt.Sprintf("%v", props["uid"])
-
-		storageKeys, err := queueSvc.List(UID)
-		if err != nil {
-			http.Error(w, "Cannot read List of keys from repo", http.StatusBadRequest)
-		}
-		params := mux.Vars(request)
-		shortUrl := params["shortlink"]
-
-		for _, storageKey := range storageKeys {
-			if storageKey == shortUrl {
-				// found key
-				// get data
-				// update data
-				// redir to real link
-				getElement, err := queueSvc.Get(UID, storageKey)
-				if err != nil {
-					http.Error(w, "Cannot read from repo", http.StatusBadRequest)
-				}
-				getElement.Redirs++
-				err = queueSvc.Put(UID, storageKey, getElement)
-				log.Printf("opening link %s (short is %s) redirs(++) %d \n", getElement.URL, getElement.Shorturl, getElement.Redirs)
-				http.Redirect(w, request, getElement.URL, http.StatusSeeOther)
-				return // todo redir here linke this? <a href="/shortopen/www.mail.ru">See Other</a>.
+		// check user authorization, get user UID, get key (for this user, check if key exists)
+		// if res - yes then do the action  - redir
+		if UID, storageKey, res := validateRequestShortLink(w, request, queueSvc); res == true {
+			// get data
+			// update data
+			// redir to real link
+			getElement, err := queueSvc.Get(UID, storageKey)
+			if err != nil {
+				ResponseApiError(w, 10, http.StatusBadGateway)
+				return
+				//http.Error(w, "Cannot read from repo", http.StatusBadRequest)
 			}
-
+			getElement.Redirs++
+			err = queueSvc.Put(UID, storageKey, getElement)
+			if err != nil {
+				ResponseApiError(w, 10, http.StatusBadGateway)
+				return
+				//http.Error(w, "Cannot read from repo", http.StatusBadRequest)
+			}
+			log.Printf("opening link %s (short is %s) redirs(++) %d \n", getElement.URL, getElement.Shorturl, getElement.Redirs)
+			http.Redirect(w, request, getElement.URL, http.StatusSeeOther)
+			//return // todo redir here linke this? <a href="/shortopen/www.mail.ru">See Other</a>.
 		}
-		http.Error(w, "Cannot find link", http.StatusBadRequest)
 
 	}
+
 }

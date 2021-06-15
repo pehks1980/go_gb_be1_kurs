@@ -1,0 +1,268 @@
+swagger: '2.0'
+info:
+  title: Kursach API
+  description: Kursach API v1
+  license:
+    name: BSD License
+  version: v1
+host: '127.0.0.1:8000'
+schemes:
+  - http
+basePath: /api/v1
+consumes:
+  - application/json
+produces:
+  - application/json
+securityDefinitions:
+ api_key:
+   type: "apiKey"
+   name: "api_key"
+   in: "header"
+   description: 'Format: Bearer \<token\>'
+
+
+paths:
+  '/links':
+    post:
+      operationId: Link create view
+      description: ''
+      parameters:
+        - name: data
+          in: body
+          required: true
+          schema:
+           $ref: '#/definitions/Link'
+      responses:
+        '200':
+          description: 'Link create OK'
+        '400':
+          description: 'Link create Error'
+          schema:
+            $ref: '#/definitions/Error'
+            
+      security:
+        - api_key: []
+      tags:
+        - Link
+    parameters: []
+  '/links/all':
+    get:
+      operationId: Links list view
+      description: ''
+      parameters: []
+
+      responses:
+        '200':
+          description: 'Link List OK'
+          schema:
+            type: object
+            properties:
+              date:
+                type: array
+                items:
+                  $ref: "#/definitions/Link"
+                readOnly: true
+        '400':
+          description: 'Link List Error'
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+       - api_key: []
+      tags:
+        - Link
+    parameters: []
+  '/shortopen/{link}':
+    get:
+      operationId: Open shortlink view
+      description: ''
+      parameters:
+        - name: link
+          in: path
+          required: true
+          type: string
+      
+      responses:
+        '300':
+          description: 'Redir to stored link '
+          
+        '400':
+          description: 'Redir Errors'
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+       - api_key: []
+      tags:
+        - Link
+    parameters: []    
+  '/shortstat/{link}':
+    get:
+      operationId: Open shortlink statistics view
+      description: ''
+      parameters:
+        - name: link
+          in: path
+          required: true
+          type: string
+
+      responses:
+        '200':
+          description: 'Short link stats'
+          schema:
+           $ref: "#/definitions/Link"
+          
+        '400':
+          description: 'Short link stats errors'
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+       - api_key: []
+      tags:
+        - Link
+    parameters: []    
+  '/links/{link}':
+    put:
+      operationId: Link update view
+      description: ''
+      parameters:
+        - name: link
+          in: path
+          required: true
+          type: string
+        - name: link
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/Link"
+      responses:
+        '200':
+          description: Link update success
+        '400':
+          description: Link update errors
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+       - api_key: []
+      tags:
+        - Link
+    delete:
+      operationId: Link delete view
+      description: ''
+      parameters: []
+      responses:
+        '200':
+          description: Link delete success
+        '400':
+          description: Link delete errors
+          schema:
+            $ref: '#/definitions/Error'
+      security:
+       - api_key: []
+      tags:
+        - Link
+    parameters:
+      - name: link
+        in: path
+        required: true
+        type: string
+        
+  '/token/refresh':
+    post:
+      operationId: refresh user jwt tokens
+      description: 'takes refresh token to generate a new pair'
+      parameters: []
+      responses:
+        '200':
+          description: User token refresh success
+          schema:
+           $ref: "#/definitions/User_token"
+        '400':
+          description: User token refresh errors
+          schema:
+            $ref: '#/definitions/Error'
+      tags:
+        - User
+      security:
+        - api_key: [ ]
+    parameters: []
+    
+  '/user/auth':
+    post:
+      operationId: loginUser
+      description: 'Logs in user'
+      parameters:
+      - name: uid
+        in: body
+        description: The user name for login
+        required: true
+        schema:
+         $ref: "#/definitions/User"
+      responses:
+        '200':
+          description: user auth login success
+          schema:
+            $ref: "#/definitions/User_token"
+          
+        '400':
+          description: user auth login failure
+          schema:
+            $ref: '#/definitions/Error'
+      tags:
+        - User
+    parameters: []
+    
+definitions:
+
+  User:
+    type: object
+    properties:
+      uid:
+       type: string
+       
+  User_token:
+    type: object
+    properties:
+      access_token:
+       type: string
+      refresh_token:
+       type: string
+       
+  Link:
+   type: object
+   properties:
+    uid:
+     type: string    
+    url:
+     type: string
+    shorturl:
+     type: string
+    dateTime:
+      title: Создан/изменен
+      type: string
+      format: date-time
+    active:
+     type: integer 
+     format: int
+    redirs:
+      type: integer
+      format: int
+
+  Error:
+    type: object
+    properties:
+      errors:
+        type: array
+        items:
+          type: object
+          properties:
+            code:
+              title: Code
+              description: error code
+              type: integer
+              readOnly: true
+            message:
+              title: Message
+              description: error message
+              type: string
+              readOnly: true
+              minLength: 1
+

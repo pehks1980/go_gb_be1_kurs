@@ -10,6 +10,7 @@ import (
 	"sync"
 )
 
+// main methods for a storage (a file repo)
 type RepoIf interface {
 	New(filename string) RepoIf
 	Get(uid, key string) (model.DataEl, error)
@@ -25,18 +26,17 @@ type FileRepo struct {
 }
 
 func (fr *FileRepo) New(filename string) RepoIf {
-	// todo init
-
+	// init file repo
 	fileRepo := &FileRepo{
 		fileName: filename,
 		fileData: make(map[string]model.DataEl),
 	}
 	//check if file exists
 	// if yes load from disk and populate repo structs
-	// so Image of file is held in map and it gets flushed every time change occurs
-	// todo need to flush file when shutdown server
+	// so 'Image' of file is held in map and it gets flushed every time change occurs
 	if _, err := os.Stat(filename); err == nil {
 		// path/to/whatever exists
+		// todo handle error
 		fileRepo.FileRepoUnpackToStruct()
 	}
 
@@ -70,7 +70,7 @@ func (fr *FileRepo) DumpMapToFile() error {
 	return nil
 }
 
-// FileRepoUnpackToStruct
+// FileRepoUnpackToStruct - load file to map of structs
 func (fr *FileRepo) FileRepoUnpackToStruct() error {
 	fr.RWMutex.Lock()
 	defer fr.RWMutex.Unlock()
@@ -101,7 +101,7 @@ func (fr *FileRepo) FileRepoUnpackToStruct() error {
 	}
 	// quickly populate our file map
 
-	// we iterate through array and make map key UID:shortlink:filedata struct
+	// we iterate through array and make map key [UID:shortlink]=filedata struct
 	for _, datael := range fileDataSlice.Data {
 		key := datael.UID + ":" + datael.Shorturl
 		fr.fileData[key] = datael
@@ -110,6 +110,8 @@ func (fr *FileRepo) FileRepoUnpackToStruct() error {
 	return nil
 }
 
+// Get - get data string from repo
+// uid:key - user:key
 func (fr *FileRepo) Get(uid, key string) (model.DataEl, error) {
 	fr.RWMutex.RLock()
 	defer fr.RWMutex.RUnlock()
@@ -130,6 +132,7 @@ func (fr *FileRepo) Get(uid, key string) (model.DataEl, error) {
 	return model.DataEl{}, err
 }
 
+// Put - store data string to repo
 func (fr *FileRepo) Put(uid, key string, value model.DataEl) error {
 	fr.RWMutex.Lock()
 	defer fr.RWMutex.Unlock()
@@ -139,6 +142,7 @@ func (fr *FileRepo) Put(uid, key string, value model.DataEl) error {
 		return err
 	}*/
 	key = uid + ":" + key
+
 	fr.fileData[key] = value
 	// changes needs to be flushed to file
 	err := fr.DumpMapToFile()
@@ -168,6 +172,7 @@ func (fr *FileRepo) Del(uid, key string) error {
 	return err
 }
 
+// List - list all keys for this user uid
 func (fr *FileRepo) List(uid string) ([]string, error) {
 	fr.RWMutex.RLock()
 	defer fr.RWMutex.RUnlock()

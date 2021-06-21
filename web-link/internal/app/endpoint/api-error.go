@@ -28,6 +28,7 @@ var (
 		8: "No uid (user id), please set uid",
 		9: "Unknown content type",
 		10: "Internal repo problem",
+		11: "No shorturl in data",
 		400: "Bad request",
 		401: "Unauthorized",
 		402: "Payment required",
@@ -41,7 +42,9 @@ func ResponseApiError(w http.ResponseWriter, code uint64, status int) {
 	var errorsjson = Errors{}
 	errorel := ErrorEl{Code: code, Message: APIErrorList[code]}
 	errorsjson.Errors = append(errorsjson.Errors, errorel)
+
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status) //has to be called first!!!!
 	_ = json.NewEncoder(w).Encode(errorsjson)
-	w.WriteHeader(status)
+
 }

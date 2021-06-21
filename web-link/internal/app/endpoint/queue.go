@@ -9,6 +9,7 @@ import (
 	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/pkg/model"
 	"log"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -21,6 +22,7 @@ type queueSvc interface {
 	Put(uid, key string, value model.DataEl) error
 	Del(uid, key string) error
 	List(uid string) ([]string, error)
+	GetUn(shortlink string) (model.DataEl, error)
 }
 
 // регистрация роутинга путей типа urls.py для обработки сервером
@@ -102,6 +104,15 @@ func JWTCheckMiddleware(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
+
+		re := regexp.MustCompile(`/shortopen/`)
+		res := re.FindStringSubmatch(r.RequestURI)
+		if len(res) != 0 {
+			//bypass jwt check when authenticating
+			next.ServeHTTP(w, r)
+			return
+		}
+
 
 		authHeader := strings.Split(r.Header.Get("Authorization"), "Bearer ")
 
@@ -192,10 +203,13 @@ func postTokenRefresh(svc queueSvc) func(http.ResponseWriter, *http.Request) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
 		err := json.NewEncoder(w).Encode(jsonTokens)
+
 		if err != nil {
 			return
 		}
+
 
 	}
 }
@@ -239,10 +253,12 @@ func postAuth(svc queueSvc) func(http.ResponseWriter, *http.Request) {
 			}
 
 			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
 			err = json.NewEncoder(w).Encode(jsonTokens)
 			if err != nil {
 				return
 			}
+
 			return
 
 		default:
@@ -257,15 +273,17 @@ func postAuth(svc queueSvc) func(http.ResponseWriter, *http.Request) {
 // del
 func delFromQueue(queueSvc queueSvc) http.HandlerFunc {
 	return func(w http.ResponseWriter, request *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
+		//w.Header().Set("Content-Type", "application/json")
 		if UID, storageKey, res := validateRequestShortLink(w, request, queueSvc); res == true {
 			//found key, delete it
 			err := queueSvc.Del(UID, storageKey)
 			if err != nil {
 				ResponseApiError(w, 10, http.StatusBadGateway)
 			}
+			w.WriteHeader(http.StatusOK)
 			return
 		}
+		return
 
 	}
 }
@@ -289,12 +307,19 @@ func putToQueue(queueSvc queueSvc) http.HandlerFunc {
 				}
 				element.Datetime = time.Now()
 				element.UID = UID
+				element.Active = 1
 				//looks ok, update storage
 				err = queueSvc.Put(UID, element.Shorturl, element)
 				if err != nil {
 					ResponseApiError(w, 10, http.StatusBadGateway)
 					//http.Error(w, "Cannot write to repo", http.StatusBadRequest)
 				}
+				// form answer json
+				err = json.NewEncoder(w).Encode(element)
+				if err != nil {
+					return
+				}
+				w.WriteHeader(http.StatusOK)
 				return
 			}
 
@@ -327,6 +352,12 @@ func postToQueue(queueSvc queueSvc) http.HandlerFunc {
 				ResponseApiError(w, 9, http.StatusBadRequest)
 				return
 			}
+			// check if we have key
+			if element.Shorturl == "" {
+				ResponseApiError(w,11,http.StatusBadRequest)
+				return
+			}
+
 			element.Datetime = time.Now()
 			// check if this key already exists
 			for _, storageKey := range storageKeys {
@@ -337,11 +368,21 @@ func postToQueue(queueSvc queueSvc) http.HandlerFunc {
 				}
 			}
 			element.UID = UID
+			element.Active = 1
 			err = queueSvc.Put(UID, element.Shorturl, element)
 			if err != nil {
 				ResponseApiError(w, 10, http.StatusBadGateway)
 				//http.Error(w, "Cannot write to repo", http.StatusBadRequest)
 			}
+			w.WriteHeader(http.StatusCreated) // this has to be the first write!!!
+			err = json.NewEncoder(w).Encode(element)
+			if err != nil {
+				return
+			}
+			// cannot set status 201
+			// http: superfluous response.WriteHeader call from bla-bla
+
+			return
 
 		default:
 			ResponseApiError(w, 9, http.StatusBadRequest)
@@ -372,6 +413,7 @@ func getFromQueue(queueSvc queueSvc) http.HandlerFunc {
 				return
 				//http.Error(w, "Cannot read from repo", http.StatusBadRequest)
 			}
+
 			datajson.Data = append(datajson.Data, getElement)
 		}
 
@@ -380,6 +422,7 @@ func getFromQueue(queueSvc queueSvc) http.HandlerFunc {
 			return
 		}
 		//log.Println(getElement)
+		//w.WriteHeader(http.StatusOK)
 	}
 }
 
@@ -403,6 +446,7 @@ func getShortStat(queueSvc queueSvc) http.HandlerFunc {
 			if err != nil {
 				return
 			}
+			w.WriteHeader(http.StatusOK)
 
 		}
 
@@ -454,28 +498,39 @@ func getShortOpen(queueSvc queueSvc) http.HandlerFunc {
 
 		// check user authorization, get user UID, get key (for this user, check if key exists)
 		// if res - yes then do the action  - redir
-		if UID, storageKey, res := validateRequestShortLink(w, request, queueSvc); res == true {
+		//if UID, storageKey, res := validateRequestShortLink(w, request, queueSvc); res == true {
 			// get data
 			// update data
 			// redir to real link
-			getElement, err := queueSvc.Get(UID, storageKey)
+
+			//make link opened without authorization
+			// we make uid = '', shortlink += : so it will find it if it exists (shortlink must be really unique)
+			// otherwise wrong link will be opened and updated
+
+			params := mux.Vars(request)
+			shortUrl := params["shortlink"]
+
+			getElement, err := queueSvc.GetUn(shortUrl)
 			if err != nil {
 				ResponseApiError(w, 10, http.StatusBadGateway)
 				return
 				//http.Error(w, "Cannot read from repo", http.StatusBadRequest)
 			}
 			getElement.Redirs++
-			err = queueSvc.Put(UID, storageKey, getElement)
+			UID := getElement.UID
+
+			err = queueSvc.Put(UID, getElement.Shorturl, getElement)
 			if err != nil {
 				ResponseApiError(w, 10, http.StatusBadGateway)
 				return
 				//http.Error(w, "Cannot read from repo", http.StatusBadRequest)
 			}
-			log.Printf("opening link %s (short is %s) redirs(++) %d \n", getElement.URL, getElement.Shorturl, getElement.Redirs)
+			log.Printf("opening user %s link  %s (short is %s) redirs(++) %d \n", getElement.UID, getElement.URL, getElement.Shorturl, getElement.Redirs)
 			http.Redirect(w, request, getElement.URL, http.StatusSeeOther)
 			//return // todo redir here linke this? <a href="/shortopen/www.mail.ru">See Other</a>.
-		}
-
+			return
+		//}
+		//ResponseApiError(w,400,http.StatusBadRequest )
 	}
 
 }

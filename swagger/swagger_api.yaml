@@ -33,8 +33,10 @@ paths:
           schema:
            $ref: '#/definitions/Link'
       responses:
-        '200':
+        '201':
           description: 'Link create OK'
+          schema:
+            $ref: '#/definitions/Link'
         '400':
           description: 'Link create Error'
           schema:
@@ -136,6 +138,8 @@ paths:
       responses:
         '200':
           description: Link update success
+          schema:
+            $ref: '#/definitions/Link'
         '400':
           description: Link update errors
           schema:

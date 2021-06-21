@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"strings"
 	"sync"
 )
 
@@ -17,6 +18,7 @@ type RepoIf interface {
 	Put(uid, key string, value model.DataEl) error
 	Del(uid, key string) error
 	List(uid string) ([]string, error)
+	GetUn(shortlink string) (model.DataEl, error)
 }
 
 type FileRepo struct {
@@ -128,6 +130,31 @@ func (fr *FileRepo) Get(uid, key string) (model.DataEl, error) {
 		return datael, nil
 
 	}
+	err := fmt.Errorf("No such link")
+	return model.DataEl{}, err
+}
+
+// find unique shortlink for shortopen
+func (fr *FileRepo) GetUn(shortlink string) (model.DataEl, error) {
+	fr.RWMutex.RLock()
+	defer fr.RWMutex.RUnlock()
+	// get data needed
+	// retrieve dat string
+	for key, datael := range fr.fileData{
+		//strip user: from key
+		//check if we have match
+		keys := strings.Split(key, ":")
+		if keys[1] == shortlink {
+			//found unique link
+			if datael.Active == 0 {
+				// deleted already
+				err := fmt.Errorf("link deleted already")
+				return model.DataEl{}, err
+			}
+			return datael, nil
+		}
+	}
+
 	err := fmt.Errorf("No such link")
 	return model.DataEl{}, err
 }

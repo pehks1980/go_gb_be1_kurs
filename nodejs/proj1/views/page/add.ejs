@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <%- include('../part/head'); %>
+</head>
+<body class="container">
+
+<header>
+<!--     // передача переменной -->
+     <%- include('../part/header', {variant:'compact'}); %>
+</header>
+
+<main>
+<div class="row">
+    
+    <!--<div class="col-sm-8">
+        <div class="jumbotron">
+            <h1>This is great</h1>
+            <p>Welcome to templating using EJS</p>
+        </div>
+    </div>-->
+
+    <div class="col-sm-8">
+        <div class="jumbotron">
+            <h1>Add new link!</h1>
+            
+            <form action="/add" method="post">
+            <!-- user input-->
+            Url:<br>
+            <input type="text" name="url" placeholder="URL" value="http://"><br><br>
+            ShortUrl:<br>
+            <input type="text" name="shorturl" placeholder="ShortURL"><br><br>
+            Redirs:<br>
+            <input type="text" name="redirs" placeholder="Redirects"><br><br>
+            <!-- submit button -->
+            <input type="submit" value="OK!">    
+            </form>
+        
+        </div>
+    </div>
+</div>
+</main>
+
+<footer>
+    <%- include('../part/footer'); %>
+</footer>
+
+</body>
+</html>

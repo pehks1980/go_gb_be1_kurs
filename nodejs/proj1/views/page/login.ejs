@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <%- include('../part/head'); %>
+</head>
+<body class="container">
+
+<header>
+    <%- include('../part/header'); %>
+</header>
+
+<main>
+    <div class="jumbotron">
+        <h1>This is great</h1>
+        <p>Welcome to API using NODE EJS</p>
+        <form action="/login" method="post">
+        <!-- user input-->
+        Username:<br>
+        <input type="text" name="username" placeholder="Username" required><br><br>
+        Password:<br>
+        <input type="password" name="password" placeholder="Password"><br><br>
+        <!-- submit button -->
+        <input type="submit" value="login">    
+        </form>
+    </div>
+</main>
+
+<footer>
+    <%- include('../part/footer'); %>
+</footer>
+
+</body>
+</html>

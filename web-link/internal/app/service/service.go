@@ -11,6 +11,7 @@ type repo interface {
 	Put(uid, key string, value model.DataEl) error
 	Del(uid, key string) error
 	List(uid string) ([]string, error)
+	GetUn(shortlink string) (model.DataEl, error)
 }
 
 // service имеет тип структура
@@ -62,4 +63,14 @@ func (s *Service) List(uid string) ([]string, error) {
 	}
 
 	return items, nil
+}
+
+func (s *Service) GetUn(shortlink string) (model.DataEl, error) {
+	value, err := s.repo.GetUn(shortlink)
+	if err != nil {
+		log.Printf("service/Get: get from repo err: %v", err)
+		return model.DataEl{}, err
+	}
+
+	return value, nil
 }

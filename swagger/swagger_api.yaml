@@ -8,17 +8,17 @@ info:
 host: '127.0.0.1:8000'
 schemes:
   - http
-basePath: /api/v1
+basePath: /
 consumes:
   - application/json
 produces:
   - application/json
 securityDefinitions:
- api_key:
-   type: "apiKey"
-   name: "api_key"
-   in: "header"
-   description: 'Format: Bearer \<token\>'
+  api_key:
+    type: "apiKey"
+    name: "api_key"
+    in: "header"
+    description: 'Format: Bearer \<token\>'
 
 
 paths:
@@ -31,7 +31,7 @@ paths:
           in: body
           required: true
           schema:
-           $ref: '#/definitions/Link'
+            $ref: '#/definitions/Link'
       responses:
         '201':
           description: 'Link create OK'
@@ -41,7 +41,7 @@ paths:
           description: 'Link create Error'
           schema:
             $ref: '#/definitions/Error'
-            
+
       security:
         - api_key: []
       tags:
@@ -69,7 +69,7 @@ paths:
           schema:
             $ref: '#/definitions/Error'
       security:
-       - api_key: []
+        - api_key: []
       tags:
         - Link
     parameters: []
@@ -82,20 +82,20 @@ paths:
           in: path
           required: true
           type: string
-      
+
       responses:
         '300':
-          description: 'Redir to stored link '
-          
+          description: 'Redir to stored URL '
+
         '400':
           description: 'Redir Errors'
           schema:
             $ref: '#/definitions/Error'
       security:
-       - api_key: []
+        - api_key: []
       tags:
         - Link
-    parameters: []    
+    parameters: []
   '/shortstat/{link}':
     get:
       operationId: Open shortlink statistics view
@@ -110,17 +110,17 @@ paths:
         '200':
           description: 'Short link stats'
           schema:
-           $ref: "#/definitions/Link"
-          
+            $ref: "#/definitions/Link"
+
         '400':
           description: 'Short link stats errors'
           schema:
             $ref: '#/definitions/Error'
       security:
-       - api_key: []
+        - api_key: []
       tags:
         - Link
-    parameters: []    
+    parameters: []
   '/links/{link}':
     put:
       operationId: Link update view
@@ -145,7 +145,7 @@ paths:
           schema:
             $ref: '#/definitions/Error'
       security:
-       - api_key: []
+        - api_key: []
       tags:
         - Link
     delete:
@@ -160,7 +160,7 @@ paths:
           schema:
             $ref: '#/definitions/Error'
       security:
-       - api_key: []
+        - api_key: []
       tags:
         - Link
     parameters:
@@ -168,7 +168,7 @@ paths:
         in: path
         required: true
         type: string
-        
+
   '/token/refresh':
     post:
       operationId: refresh user jwt tokens
@@ -178,7 +178,7 @@ paths:
         '200':
           description: User token refresh success
           schema:
-           $ref: "#/definitions/User_token"
+            $ref: "#/definitions/User_token"
         '400':
           description: User token refresh errors
           schema:
@@ -188,24 +188,24 @@ paths:
       security:
         - api_key: [ ]
     parameters: []
-    
+
   '/user/auth':
     post:
       operationId: loginUser
       description: 'Logs in user'
       parameters:
-      - name: uid
-        in: body
-        description: The user name for login
-        required: true
-        schema:
-         $ref: "#/definitions/User"
+        - name: uid
+          in: body
+          description: The user name for login
+          required: true
+          schema:
+            $ref: "#/definitions/User"
       responses:
         '200':
           description: user auth login success
           schema:
             $ref: "#/definitions/User_token"
-          
+
         '400':
           description: user auth login failure
           schema:
@@ -213,42 +213,42 @@ paths:
       tags:
         - User
     parameters: []
-    
+
 definitions:
 
   User:
     type: object
     properties:
       uid:
-       type: string
-       
+        type: string
+
   User_token:
     type: object
     properties:
       access_token:
-       type: string
+        type: string
       refresh_token:
-       type: string
-       
+        type: string
+
   Link:
-   type: object
-   properties:
-    uid:
-     type: string    
-    url:
-     type: string
-    shorturl:
-     type: string
-    dateTime:
-      title: Создан/изменен
-      type: string
-      format: date-time
-    active:
-     type: integer 
-     format: int
-    redirs:
-      type: integer
-      format: int
+    type: object
+    properties:
+      uid:
+        type: string
+      url:
+        type: string
+      shorturl:
+        type: string
+      dateTime:
+        title: Создан/изменен
+        type: string
+        format: datetime
+      active:
+        type: integer
+        format: int
+      redirs:
+        type: integer
+        format: int
 
   Error:
     type: object
@@ -268,5 +268,5 @@ definitions:
               description: error message
               type: string
               readOnly: true
-              minLength: 1
+
 

@@ -2,7 +2,78 @@
 <html lang="en">
 <head>
     <%- include('../part/head'); %>
-    <script src="./js/client.js"></script>
+    <script>
+        window.onload = doStuff;
+        //to ensure everything is found load page first
+        function doStuff() {
+
+            console.log('Client-side code running');
+            // listeners for delete buttons
+            var buttons = document.querySelectorAll(".MyDelButton");
+            var i = 0, length = buttons.length;
+            for (i; i < length; i++) {
+                if (document.addEventListener) {
+                    buttons[i].addEventListener("click", function() {
+                        // use keyword this to target clicked button
+                        console.log(`del button with key ${this.id} was clicked`);
+                        var id = this.id
+                        // send key to node js
+                        fetch('/delete', {method: 'POST',
+                            headers: {
+                                'Accept': 'application/json',
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({'shorturl': id})
+                        })
+                            .then(function(response) {
+                                if(response.ok) {
+                                    console.log('click was recorded');
+                                    window.location='<%= nodejs %>/list';
+                                    return;
+                                }
+                                throw new Error('Request failed.');
+                            })
+                            .catch(function(error) {
+                                console.log(error);
+                            });
+
+                    });
+                } else {
+                    buttons[i].attachEvent("onclick", function() {
+                        // use buttons[i] to target clicked button
+                    });
+                };
+            };
+
+            //edit buttons
+            var buttonsEd = document.querySelectorAll(".MyEdButton");
+            var i = 0, length = buttonsEd.length;
+            for (i; i < length; i++) {
+                if (document.addEventListener) {
+                    buttonsEd[i].addEventListener("click", function() {
+                        // use keyword this to target clicked button
+                        console.log(`button edit with key ${this.id} was clicked`);
+                        var id = this.id
+                        // send key to node js
+                        window.location='<%= nodejs %>/edit?shorturl='+id;
+
+                    });
+                } else {
+                    buttonsEd[i].attachEvent("onclick", function() {
+                        // use buttons[i] to target clicked button
+                    });
+                };
+            };
+            // add link button handler
+            var addbutton = document.getElementById('addbutton');
+            addbutton.addEventListener('click', function(e) {
+                console.log('button add was clicked');
+                window.location='<%= nodejs %>/add';
+
+            });
+
+        };
+    </script>
 </head>
 <body class="container">
 
@@ -13,13 +84,6 @@
 
 <main>
 <div class="row">
-    
-    <!--<div class="col-sm-8">
-        <div class="jumbotron">
-            <h1>This is great</h1>
-            <p>Welcome to templating using EJS</p>
-        </div>
-    </div>-->
 
     <div class="col-sm-10">
         <div class="jumbotron">
@@ -34,10 +98,9 @@
                <% for (var i = 0; i < mc.length; i++) { %>
                 <tr>
                   
-                  <td><a href="http://127.0.0.1:8000/shortopen/<%= mc[i].shorturl %>">Check link!: <%= mc[i].shorturl %></a> </td>
+                  <td><a href="<%= api %>/shortopen/<%= mc[i].shorturl %>">Check link!: <%= mc[i].shorturl %></a> </td>
                     <td><%= mc[i].url %></td>
                     <td><%= mc[i].redirs %></td>
-                   
                     <td><%= mc[i].datetime %></td>
                     <td> <button class="MyDelButton" id="<%= mc[i].shorturl %>">Delete me!</button></td>
                     <td> <button class="MyEdButton" id="<%= mc[i].shorturl %>">Change me!</button></td>

@@ -4,14 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/dgrijalva/jwt-go"
-	"github.com/gorilla/mux"
-	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/pkg/model"
 	"log"
 	"net/http"
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/dgrijalva/jwt-go"
+	"github.com/gorilla/mux"
+	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/pkg/model"
 )
 
 // интерфейс очередного сервиса также имеет put get - для работы с файлохранилищем
@@ -113,7 +114,6 @@ func JWTCheckMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-
 		authHeader := strings.Split(r.Header.Get("Authorization"), "Bearer ")
 
 		if len(authHeader) != 2 {
@@ -209,7 +209,6 @@ func postTokenRefresh(svc queueSvc) func(http.ResponseWriter, *http.Request) {
 		if err != nil {
 			return
 		}
-
 
 	}
 }
@@ -319,7 +318,6 @@ func putToQueue(queueSvc queueSvc) http.HandlerFunc {
 				if err != nil {
 					return
 				}
-				w.WriteHeader(http.StatusOK)
 				return
 			}
 
@@ -354,7 +352,7 @@ func postToQueue(queueSvc queueSvc) http.HandlerFunc {
 			}
 			// check if we have key
 			if element.Shorturl == "" {
-				ResponseApiError(w,11,http.StatusBadRequest)
+				ResponseApiError(w, 11, http.StatusBadRequest)
 				return
 			}
 
@@ -379,9 +377,6 @@ func postToQueue(queueSvc queueSvc) http.HandlerFunc {
 			if err != nil {
 				return
 			}
-			// cannot set status 201
-			// http: superfluous response.WriteHeader call from bla-bla
-
 			return
 
 		default:
@@ -399,9 +394,12 @@ func getFromQueue(queueSvc queueSvc) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		var datajson = model.Data{}
 
+		var err error
+
 		storageKeys, UID, err := getUserStorageKeys(request, queueSvc)
 		if err != nil {
 			ResponseApiError(w, 10, http.StatusBadGateway)
+			return
 			///http.Error(w, "Cannot read List of keys from repo", http.StatusBadRequest)
 		}
 
@@ -422,7 +420,6 @@ func getFromQueue(queueSvc queueSvc) http.HandlerFunc {
 			return
 		}
 		//log.Println(getElement)
-		//w.WriteHeader(http.StatusOK)
 	}
 }
 
@@ -446,7 +443,6 @@ func getShortStat(queueSvc queueSvc) http.HandlerFunc {
 			if err != nil {
 				return
 			}
-			w.WriteHeader(http.StatusOK)
 
 		}
 
@@ -499,36 +495,36 @@ func getShortOpen(queueSvc queueSvc) http.HandlerFunc {
 		// check user authorization, get user UID, get key (for this user, check if key exists)
 		// if res - yes then do the action  - redir
 		//if UID, storageKey, res := validateRequestShortLink(w, request, queueSvc); res == true {
-			// get data
-			// update data
-			// redir to real link
+		// get data
+		// update data
+		// redir to real link
 
-			//make link opened without authorization
-			// we make uid = '', shortlink += : so it will find it if it exists (shortlink must be really unique)
-			// otherwise wrong link will be opened and updated
+		//make link opened without authorization
+		// we make uid = '', shortlink += : so it will find it if it exists (shortlink must be really unique)
+		// otherwise wrong link will be opened and updated
 
-			params := mux.Vars(request)
-			shortUrl := params["shortlink"]
+		params := mux.Vars(request)
+		shortUrl := params["shortlink"]
 
-			getElement, err := queueSvc.GetUn(shortUrl)
-			if err != nil {
-				ResponseApiError(w, 10, http.StatusBadGateway)
-				return
-				//http.Error(w, "Cannot read from repo", http.StatusBadRequest)
-			}
-			getElement.Redirs++
-			UID := getElement.UID
-
-			err = queueSvc.Put(UID, getElement.Shorturl, getElement)
-			if err != nil {
-				ResponseApiError(w, 10, http.StatusBadGateway)
-				return
-				//http.Error(w, "Cannot read from repo", http.StatusBadRequest)
-			}
-			log.Printf("opening user %s link  %s (short is %s) redirs(++) %d \n", getElement.UID, getElement.URL, getElement.Shorturl, getElement.Redirs)
-			http.Redirect(w, request, getElement.URL, http.StatusSeeOther)
-			//return // todo redir here linke this? <a href="/shortopen/www.mail.ru">See Other</a>.
+		getElement, err := queueSvc.GetUn(shortUrl)
+		if err != nil {
+			ResponseApiError(w, 10, http.StatusBadGateway)
 			return
+			//http.Error(w, "Cannot read from repo", http.StatusBadRequest)
+		}
+		getElement.Redirs++
+		UID := getElement.UID
+
+		err = queueSvc.Put(UID, getElement.Shorturl, getElement)
+		if err != nil {
+			ResponseApiError(w, 10, http.StatusBadGateway)
+			return
+			//http.Error(w, "Cannot read from repo", http.StatusBadRequest)
+		}
+		log.Printf("opening user %s link  %s (short is %s) redirs(++) %d \n", getElement.UID, getElement.URL, getElement.Shorturl, getElement.Redirs)
+		http.Redirect(w, request, getElement.URL, http.StatusSeeOther)
+		//return // todo redir here linke this? <a href="/shortopen/www.mail.ru">See Other</a>.
+		return
 		//}
 		//ResponseApiError(w,400,http.StatusBadRequest )
 	}

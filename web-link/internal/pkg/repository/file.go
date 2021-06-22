@@ -38,8 +38,10 @@ func (fr *FileRepo) New(filename string) RepoIf {
 	// so 'Image' of file is held in map and it gets flushed every time change occurs
 	if _, err := os.Stat(filename); err == nil {
 		// path/to/whatever exists
-		// todo handle error
-		fileRepo.FileRepoUnpackToStruct()
+		err = fileRepo.FileRepoUnpackToStruct()
+		if err != nil {
+			log.Fatalf("Problem with filesystem: %v", err)
+		}
 	}
 
 	return fileRepo
@@ -140,7 +142,7 @@ func (fr *FileRepo) GetUn(shortlink string) (model.DataEl, error) {
 	defer fr.RWMutex.RUnlock()
 	// get data needed
 	// retrieve dat string
-	for key, datael := range fr.fileData{
+	for key, datael := range fr.fileData {
 		//strip user: from key
 		//check if we have match
 		keys := strings.Split(key, ":")

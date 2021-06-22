@@ -12,23 +12,23 @@ type Errors struct {
 
 // Error json array
 type ErrorEl struct {
-	Code    uint64  `json:"code"`
+	Code    uint64 `json:"code"`
 	Message string `json:"message"`
 }
 
 var (
-	APIErrorList = map[uint64]string {
-		1: "Token has expired time",
-		2: "Unknown token",
-		3: "Access/Refresh token is lost",
-		4: "The shortlink name must be provided.",
-		5: "The shortlink with the specified name already exists",
-		6: "The shortlink with the specified name does not exist",
-		7: "Please provide refresh token, or authenticate again",
-		8: "No uid (user id), please set uid",
-		9: "Unknown content type",
-		10: "Internal repo problem",
-		11: "No shorturl in data",
+	APIErrorList = map[uint64]string{
+		1:   "Token has expired time",
+		2:   "Unknown token",
+		3:   "Access/Refresh token is lost",
+		4:   "The shortlink name must be provided.",
+		5:   "The shortlink with the specified name already exists",
+		6:   "The shortlink with the specified name does not exist",
+		7:   "Please provide refresh token, or authenticate again",
+		8:   "No uid (user id), please set uid",
+		9:   "Unknown content type",
+		10:  "Internal repo problem",
+		11:  "No shorturl in data",
 		400: "Bad request",
 		401: "Unauthorized",
 		402: "Payment required",

@@ -12,8 +12,7 @@ import (
 	"time"
 
 	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/app/endpoint"
-	// сервис сервера ()
-	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/app/service"
+
 	// репозиторий (хранилище) 1 файло 2 память 3 pg sql(db)
 	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/pkg/repository"
 )
@@ -32,15 +31,17 @@ func main() {
 	repoif = new(repository.FileRepo)
 	//repoif = new(repository.MemRepo)
 	//repoif = new(repository.PgRepo)
-	// вызов доп метода интерфейса - инициализация каким то конфигом
-	repoif = repoif.New(*storageName)
 
-	// инициализация сервиса - 'сцепление' с файловым хранилищем
-	// через интерфейс :
-	// в итоге svc хранит методы и данные структуры файлового хранилища file.go Put Get
-	linkSVC := service.New(repoif)
-	//создание сервера с таким портом, и обработчиком интерфейс которого связывается а файлохранилищем
-	// т.к. инициализация происходит (RegisterPublicHTTP)- в интерфейс endpoint подаетмя структура из file.go
+	// вызов метода интерфейса - инициализация конфигa
+	linkSVC := repoif.New(*storageName)
+
+	//linkSVC := service.New(repoif) - интерфейс обертка можно использовать для тестинга/мокинга/логинга
+	// других сервис-функций
+
+	// repoif <-> linkSVC
+
+	// создание сервера с таким портом, и обработчиком интерфейс которого связывается а файлохранилищем
+	// т.к. инициализация происходит (RegisterPublicHTTP)- в интерфейс endpoint подается структура из file.go
 	serv := http.Server{
 		Addr:    net.JoinHostPort("", *port),
 		Handler: endpoint.RegisterPublicHTTP(linkSVC),

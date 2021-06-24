@@ -2,9 +2,10 @@ package endpoint
 
 import (
 	"fmt"
+	"net/http"
+
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
-	"net/http"
 )
 
 // GetUserStorageKeys - get all keys for this user in repo
@@ -16,9 +17,9 @@ func GetUserStorageKeys(request *http.Request, linkSvc linkSvc) ([]string, strin
 	return storageKeys, UID, err
 }
 
-// ValidateRequestShortLink - валидация shortlink + токен авторизации
-// ошибка валидации вылетает клиенту сама а результат - true ok
-// Эту ф можно применить там где есть этот парам
+// ValidateRequestShortLink - валидация shortlink параметра в request
+// Возвращает саму ссылку, юзерайди (из токена), результат - тру - валидно
+// инвалидно - результ - фалз, и все пустое.
 func ValidateRequestShortLink(request *http.Request, linkSvc linkSvc) (string, string, bool) {
 
 	storageKeys, UID, err := GetUserStorageKeys(request, linkSvc)
@@ -37,4 +38,3 @@ func ValidateRequestShortLink(request *http.Request, linkSvc linkSvc) (string, s
 
 	return "", "", false
 }
-

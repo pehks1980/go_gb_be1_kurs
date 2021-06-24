@@ -3,14 +3,16 @@ package endpoint
 import (
 	"context"
 	"fmt"
-	"github.com/dgrijalva/jwt-go"
 	"log"
 	"net/http"
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/dgrijalva/jwt-go"
 )
 
+// LoggingMiddleware - logs any request to api
 func LoggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
@@ -25,6 +27,7 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+// GenJWTWithClaims - generate jwt tokens pair
 func GenJWTWithClaims(uidtext string, token_type int) (string, error) {
 	mySigningKey := []byte("AllYourBase")
 
@@ -61,6 +64,7 @@ func GenJWTWithClaims(uidtext string, token_type int) (string, error) {
 	//Output: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmb28iOiJiYXIiLCJleHAiOjE1MDAwLCJpc3MiOiJ0ZXN0In0.HE7fK0xOQwFEr4WDgRWj4teRPZ6i3GLwD5YCm6Pwu_c <nil>
 }
 
+// JWTCheckMiddleware - check for authorization and json flag
 func JWTCheckMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 

@@ -61,7 +61,7 @@ func GenJWTWithClaims(uidText string, tokenType int) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	fmt.Printf("%v %v", ss, err)
+	//fmt.Printf("%v %v", ss, err)
 	return ss, nil
 	//Output: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmb28iOiJiYXIiLCJleHAiOjE1MDAwLCJpc3MiOiJ0ZXN0In0.HE7fK0xOQwFEr4WDgRWj4teRPZ6i3GLwD5YCm6Pwu_c <nil>
 }
@@ -102,16 +102,9 @@ func JWTCheckMiddleware(next http.Handler) http.Handler {
 		})
 
 		if token.Valid {
-			//fmt.Println("You look nice today")
 			if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
 				ctx := context.WithValue(r.Context(), ctxKey{}, claims)
 
-				// now check for json type in header
-				// all specific queries like shortstat etc
-				// must have it in request!!!
-
-				// Access context values in handlers like this
-				// props, _ := r.Context().Value("props").(jwt.MapClaims)
 				if r.RequestURI != "/token/refresh" {
 					// allow access to all API nodes with access token
 					iss := fmt.Sprintf("%v", claims["iss"])

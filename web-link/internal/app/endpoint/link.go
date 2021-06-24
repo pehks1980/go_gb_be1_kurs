@@ -51,16 +51,18 @@ func postTokenRefresh(svc linkSvc) func(http.ResponseWriter, *http.Request) {
 			Refresh string `json:"refreshToken"`
 		}
 
-		props, _ := request.Context().Value("props").(jwt.MapClaims)
-		//fmt.Println(props["uid"])
+		props, _ := request.Context().Value(ctxKey{}).(jwt.MapClaims)
+
 		UID := fmt.Sprintf("%v", props["uid"])
-		Issuer := fmt.Sprintf("%v", props["iss"])
 
-		if Issuer != "weblink_refresh" {
-			ResponseAPIError(w, 7, http.StatusBadRequest)
-			return
-		}
+		/*
+			Issuer := fmt.Sprintf("%v", props["iss"])
 
+			if Issuer != "weblink_refresh" {
+				ResponseAPIError(w, 7, http.StatusBadRequest)
+				return
+			}
+		*/
 		tokenAccess, _ := GenJWTWithClaims(UID, 0)
 		tokenRefresh, _ := GenJWTWithClaims(UID, 1)
 
@@ -234,7 +236,7 @@ func postToLink(linkSvc linkSvc) http.HandlerFunc {
 		element.Active = 1
 		err = linkSvc.Put(UID, element.Shorturl, element)
 		if err != nil {
-			ResponseAPIError(w, 10, http.StatusBadGateway)
+			ResponseAPIError(w, 10, http.StatusBadRequest)
 		}
 		w.WriteHeader(http.StatusCreated) // this has to be the first write!!!
 		err = json.NewEncoder(w).Encode(element)
@@ -261,7 +263,7 @@ func getFromLink(linkSvc linkSvc) http.HandlerFunc {
 		for _, storageKey := range storageKeys {
 			getElement, errfor := linkSvc.Get(UID, storageKey)
 			if errfor != nil {
-				ResponseAPIError(w, 10, http.StatusBadGateway)
+				ResponseAPIError(w, 10, http.StatusBadRequest)
 				return
 				//http.Error(w, "Cannot read from repo", http.StatusBadRequest)
 			}

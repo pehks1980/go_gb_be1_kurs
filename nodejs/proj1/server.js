@@ -250,18 +250,23 @@ app.get('/list', function(req, res) {
             console.log("mc=", mc);
 
             //strip datetime to short format
-            if ('data' in mc && mc.data !== null) {
-
+            if ('errors' in mc) {
+                // no token
+                res.render('page/unathorized', {username: ''});
+            } else if (mc.data === null) {
+                // empty list
+                res.render('page/list', {mc: mc.data, username: username, api: apiurl, nodejs: nodejsurl});
+            } else {
+                // not empty list
                 for (const x of mc.data) {
                     let res = x.datetime.split(".");
                     let res1 = res[0].split("T");
                     x.datetime = res1[1] + ' ' + res1[0];
                     console.log(x.datetime);
                 }
-            res.render('page/list', {mc: mc.data, username: username, api: apiurl, nodejs: nodejsurl});
-            } else {
-                res.render('page/unathorized', {username: ''});
-            }
+                res.render('page/list', {mc: mc.data, username: username, api: apiurl, nodejs: nodejsurl});
+            };
+
         });
 
     } else {

@@ -20,10 +20,12 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 		start := time.Now()
 		//вызов следующего хендлера в цепочке
 		next.ServeHTTP(w, r)
-
-		log.Printf("request: %s %s - %v\n",
+		props, _ := r.Context().Value(ctxKey{}).(jwt.MapClaims)
+		UID := fmt.Sprintf("%v", props["uid"])
+		log.Printf("request: %s %s, user: %s - %v\n",
 			r.Method,
 			r.URL.EscapedPath(),
+			UID,
 			time.Since(start),
 		)
 	})

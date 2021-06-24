@@ -38,8 +38,8 @@ func RegisterPublicHTTP(linkSvc linkSvc) *mux.Router {
 	r.HandleFunc("/links/{shortlink}", putToLink(linkSvc)).Methods(http.MethodPut)
 	r.HandleFunc("/links/{shortlink}", delFromLink(linkSvc)).Methods(http.MethodDelete)
 
-	r.Use(LoggingMiddleware)
 	r.Use(JWTCheckMiddleware)
+	r.Use(LoggingMiddleware)
 	return r
 }
 

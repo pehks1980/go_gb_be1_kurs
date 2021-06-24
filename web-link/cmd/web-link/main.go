@@ -38,12 +38,12 @@ func main() {
 	// инициализация сервиса - 'сцепление' с файловым хранилищем
 	// через интерфейс :
 	// в итоге svc хранит методы и данные структуры файлового хранилища file.go Put Get
-	queueSVC := service.New(repoif)
+	linkSVC := service.New(repoif)
 	//создание сервера с таким портом, и обработчиком интерфейс которого связывается а файлохранилищем
 	// т.к. инициализация происходит (RegisterPublicHTTP)- в интерфейс endpoint подаетмя структура из file.go
 	serv := http.Server{
 		Addr:    net.JoinHostPort("", *port),
-		Handler: endpoint.RegisterPublicHTTP(queueSVC),
+		Handler: endpoint.RegisterPublicHTTP(linkSVC),
 	}
 	// запуск сервера
 	go func() {

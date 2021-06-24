@@ -10,7 +10,7 @@ var username = '';
 const apiurl = 'http://127.0.0.1:8000';
 // nodejs (this) server address:port
 const nodejsurl = 'http://127.0.0.1:8090';
-// must be the same as nodejsapi -):
+// must be the same as nodejsurl -):
 const srvIP = '127.0.0.1';
 const srvPort = '8090';
 
@@ -247,17 +247,21 @@ app.get('/list', function(req, res) {
     if (checktoken(token) == true) {
 
         getAPI1(function(mc /* mc api response is passed using callback */) {
-            console.log("mc=", mc.data);
-            //strip datetime to short format
-            if (mc.data !== null){
+            console.log("mc=", mc);
 
-                for (const x of mc.data) { 
+            //strip datetime to short format
+            if ('data' in mc) {
+
+                for (const x of mc.data) {
                     let res = x.datetime.split(".");
-                    x.datetime = res[0];
-                    //console.log(x.datetime); 
-                };
-            ;}
-            res.render('page/list', {mc: mc.data, username: username, api : apiurl, nodejs: nodejsurl});
+                    let res1 = res[0].split("T");
+                    x.datetime = res1[1] + ' ' + res1[0];
+                    console.log(x.datetime);
+                }
+            res.render('page/list', {mc: mc.data, username: username, api: apiurl, nodejs: nodejsurl});
+            } else {
+                res.render('page/unathorized', {username: ''});
+            }
         });
 
     } else {

@@ -136,7 +136,7 @@ func (fr *FileRepo) Get(uid, key string) (model.DataEl, error) {
 	return model.DataEl{}, err
 }
 
-// find unique shortlink for shortopen
+// find unique shortlink for shortopen + update redir count
 func (fr *FileRepo) GetUn(shortlink string) (model.DataEl, error) {
 	fr.RWMutex.RLock()
 	defer fr.RWMutex.RUnlock()
@@ -151,6 +151,14 @@ func (fr *FileRepo) GetUn(shortlink string) (model.DataEl, error) {
 			if datael.Active == 0 {
 				// deleted already
 				err := fmt.Errorf("link deleted already")
+				return model.DataEl{}, err
+			}
+			// update redirs count save it and return it
+			datael.Redirs++
+			fr.fileData[key] = datael
+			// changes needs to be flushed to file
+			err := fr.DumpMapToFile()
+			if err != nil {
 				return model.DataEl{}, err
 			}
 			return datael, nil

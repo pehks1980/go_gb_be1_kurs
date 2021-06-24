@@ -57,16 +57,16 @@ func postTokenRefresh(svc linkSvc) func(http.ResponseWriter, *http.Request) {
 		Issuer := fmt.Sprintf("%v", props["iss"])
 
 		if Issuer != "weblink_refresh" {
-			ResponseApiError(w, 7, http.StatusBadRequest)
+			ResponseAPIError(w, 7, http.StatusBadRequest)
 			return
 		}
 
-		token_access, _ := GenJWTWithClaims(UID, 0)
-		token_refresh, _ := GenJWTWithClaims(UID, 1)
+		tokenAccess, _ := GenJWTWithClaims(UID, 0)
+		tokenRefresh, _ := GenJWTWithClaims(UID, 1)
 
 		var jsonTokens = TokenAnswer{
-			Access:  token_access,
-			Refresh: token_refresh,
+			Access:  tokenAccess,
+			Refresh: tokenRefresh,
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -83,35 +83,41 @@ func postTokenRefresh(svc linkSvc) func(http.ResponseWriter, *http.Request) {
 // postAuth - autheticate and give authorization token
 func postAuth(svc linkSvc) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, request *http.Request) {
+		//json header check
+		contentType := request.Header.Get("Content-Type")
+		if contentType != "application/json" {
+			ResponseAPIError(w, 9, http.StatusBadRequest)
+			return
+		}
 
 		type TokenAnswer struct {
 			Access  string `json:"accessToken"`
 			Refresh string `json:"refreshToken"`
 		}
 
-		type PostJsonRq struct {
-			Uid string `json:"uid"`
+		type PostJSONRq struct {
+			UID string `json:"uid"`
 		}
 
-		var jsonPostRq = PostJsonRq{}
+		var jsonPostRq = PostJSONRq{}
 
 		err := json.NewDecoder(request.Body).Decode(&jsonPostRq)
 		if err != nil {
-			ResponseApiError(w, 400, http.StatusBadRequest)
+			ResponseAPIError(w, 400, http.StatusBadRequest)
 			return
 		}
 		// get uid
-		if jsonPostRq.Uid == "" {
-			ResponseApiError(w, 8, http.StatusBadRequest)
+		if jsonPostRq.UID == "" {
+			ResponseAPIError(w, 8, http.StatusBadRequest)
 			return
 		}
 
-		token_access, _ := GenJWTWithClaims(jsonPostRq.Uid, 0)
-		token_refresh, _ := GenJWTWithClaims(jsonPostRq.Uid, 1)
+		tokenAccess, _ := GenJWTWithClaims(jsonPostRq.UID, 0)
+		tokenRefresh, _ := GenJWTWithClaims(jsonPostRq.UID, 1)
 
 		var jsonTokens = TokenAnswer{
-			Access:  token_access,
-			Refresh: token_refresh,
+			Access:  tokenAccess,
+			Refresh: tokenRefresh,
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -132,14 +138,14 @@ func delFromLink(linkSvc linkSvc) http.HandlerFunc {
 
 		UID, storageKey, res := ValidateRequestShortLink(request, linkSvc)
 		if !res {
-			ResponseApiError(w, 4, http.StatusBadRequest)
+			ResponseAPIError(w, 4, http.StatusBadRequest)
 			return
 		}
 
 		//found key, delete it
 		err := linkSvc.Del(UID, storageKey)
 		if err != nil {
-			ResponseApiError(w, 10, http.StatusBadRequest)
+			ResponseAPIError(w, 10, http.StatusBadRequest)
 			return
 		}
 
@@ -149,18 +155,25 @@ func delFromLink(linkSvc linkSvc) http.HandlerFunc {
 // putToLink updates link from api storage
 func putToLink(linkSvc linkSvc) http.HandlerFunc {
 	return func(w http.ResponseWriter, request *http.Request) {
+		//json header check
+		contentType := request.Header.Get("Content-Type")
+		if contentType != "application/json" {
+			ResponseAPIError(w, 9, http.StatusBadRequest)
+			return
+		}
+
 		var element = model.DataEl{}
 		w.Header().Set("Content-Type", "application/json")
 
 		UID, _, res := ValidateRequestShortLink(request, linkSvc)
 		if !res {
-			ResponseApiError(w, 9, http.StatusBadRequest)
+			ResponseAPIError(w, 9, http.StatusBadRequest)
 			return
 		}
 		//found key, work with body
 		err := json.NewDecoder(request.Body).Decode(&element)
 		if err != nil {
-			ResponseApiError(w, 9, http.StatusBadRequest)
+			ResponseAPIError(w, 9, http.StatusBadRequest)
 			return
 		}
 		element.Datetime = time.Now()
@@ -169,7 +182,7 @@ func putToLink(linkSvc linkSvc) http.HandlerFunc {
 		//looks ok, update storage
 		err = linkSvc.Put(UID, element.Shorturl, element)
 		if err != nil {
-			ResponseApiError(w, 9, http.StatusBadRequest)
+			ResponseAPIError(w, 9, http.StatusBadRequest)
 		}
 		// form answer json
 		err = json.NewEncoder(w).Encode(element)
@@ -183,23 +196,29 @@ func putToLink(linkSvc linkSvc) http.HandlerFunc {
 // postToLink - creates new item in api storage
 func postToLink(linkSvc linkSvc) http.HandlerFunc {
 	return func(w http.ResponseWriter, request *http.Request) {
+		//json header check
+		contentType := request.Header.Get("Content-Type")
+		if contentType != "application/json" {
+			ResponseAPIError(w, 9, http.StatusBadRequest)
+			return
+		}
 		var element = model.DataEl{}
 		w.Header().Set("Content-Type", "application/json")
 
 		storageKeys, UID, err := GetUserStorageKeys(request, linkSvc)
 		if err != nil {
-			ResponseApiError(w, 10, http.StatusBadRequest)
+			ResponseAPIError(w, 10, http.StatusBadRequest)
 			return
 		}
 
 		err = json.NewDecoder(request.Body).Decode(&element)
 		if err != nil {
-			ResponseApiError(w, 9, http.StatusBadRequest)
+			ResponseAPIError(w, 9, http.StatusBadRequest)
 			return
 		}
 		// check if we have key
 		if element.Shorturl == "" {
-			ResponseApiError(w, 11, http.StatusBadRequest)
+			ResponseAPIError(w, 11, http.StatusBadRequest)
 			return
 		}
 
@@ -207,7 +226,7 @@ func postToLink(linkSvc linkSvc) http.HandlerFunc {
 		// check if this key already exists
 		for _, storageKey := range storageKeys {
 			if storageKey == element.Shorturl {
-				ResponseApiError(w, 5, http.StatusBadRequest)
+				ResponseAPIError(w, 5, http.StatusBadRequest)
 				return
 			}
 		}
@@ -215,7 +234,7 @@ func postToLink(linkSvc linkSvc) http.HandlerFunc {
 		element.Active = 1
 		err = linkSvc.Put(UID, element.Shorturl, element)
 		if err != nil {
-			ResponseApiError(w, 10, http.StatusBadGateway)
+			ResponseAPIError(w, 10, http.StatusBadGateway)
 		}
 		w.WriteHeader(http.StatusCreated) // this has to be the first write!!!
 		err = json.NewEncoder(w).Encode(element)
@@ -235,14 +254,14 @@ func getFromLink(linkSvc linkSvc) http.HandlerFunc {
 
 		storageKeys, UID, err := GetUserStorageKeys(request, linkSvc)
 		if err != nil {
-			ResponseApiError(w, 10, http.StatusBadRequest)
+			ResponseAPIError(w, 10, http.StatusBadRequest)
 			return
 		}
 
 		for _, storageKey := range storageKeys {
 			getElement, errfor := linkSvc.Get(UID, storageKey)
 			if errfor != nil {
-				ResponseApiError(w, 10, http.StatusBadGateway)
+				ResponseAPIError(w, 10, http.StatusBadGateway)
 				return
 				//http.Error(w, "Cannot read from repo", http.StatusBadRequest)
 			}
@@ -267,13 +286,13 @@ func getShortStat(linkSvc linkSvc) http.HandlerFunc {
 		// if res - yes then do the action  - give string from repo as json
 		UID, storageKey, res := ValidateRequestShortLink(request, linkSvc)
 		if !res {
-			ResponseApiError(w, 11, http.StatusBadRequest)
+			ResponseAPIError(w, 11, http.StatusBadRequest)
 			return
 		}
 
 		getElement, err := linkSvc.Get(UID, storageKey)
 		if err != nil {
-			ResponseApiError(w, 10, http.StatusBadRequest)
+			ResponseAPIError(w, 10, http.StatusBadRequest)
 			return
 		}
 
@@ -293,11 +312,11 @@ func getShortOpen(linkSvc linkSvc) http.HandlerFunc {
 		// redir to real link
 
 		params := mux.Vars(request)
-		shortUrl := params["shortlink"]
+		shortURL := params["shortlink"]
 		// GetUn retreives link and updates redir count
-		getElement, err := linkSvc.GetUn(shortUrl)
+		getElement, err := linkSvc.GetUn(shortURL)
 		if err != nil {
-			ResponseApiError(w, 10, http.StatusBadRequest)
+			ResponseAPIError(w, 10, http.StatusBadRequest)
 			return
 		}
 

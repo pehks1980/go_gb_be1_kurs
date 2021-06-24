@@ -5,19 +5,19 @@ import (
 	"net/http"
 )
 
-// json error api
+// Errors - json error api
 type Errors struct {
 	Errors []ErrorEl `json:"errors"`
 }
 
-// Error json array
+// ErrorEl - json array
 type ErrorEl struct {
 	Code    uint64 `json:"code"`
 	Message string `json:"message"`
 }
 
 var (
-	APIErrorList = map[uint64]string{
+	apiErrorList = map[uint64]string{
 		1:   "Token has expired time",
 		2:   "Unknown token",
 		3:   "Access/Refresh token is lost",
@@ -38,9 +38,10 @@ var (
 	}
 )
 
-func ResponseApiError(w http.ResponseWriter, code uint64, status int) {
+// ResponseAPIError - reply to api when some error happened when accessing api
+func ResponseAPIError(w http.ResponseWriter, code uint64, status int) {
 	var errorsjson = Errors{}
-	errorel := ErrorEl{Code: code, Message: APIErrorList[code]}
+	errorel := ErrorEl{Code: code, Message: apiErrorList[code]}
 	errorsjson.Errors = append(errorsjson.Errors, errorel)
 
 	w.Header().Set("Content-Type", "application/json")

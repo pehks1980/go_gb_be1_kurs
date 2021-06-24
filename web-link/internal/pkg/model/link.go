@@ -2,12 +2,12 @@ package model
 
 import "time"
 
-// Data json array
+// Data  - json array
 type Data struct {
 	Data []DataEl `json:"data"`
 }
 
-// Data элемент строки файла json
+// DataEl - элемент Data строки файла json
 type DataEl struct {
 	UID      string    `json:"uid"`
 	URL      string    `json:"url"`

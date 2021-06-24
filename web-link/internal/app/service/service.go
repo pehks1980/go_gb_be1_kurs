@@ -1,11 +1,13 @@
 package service
 
 import (
-	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/pkg/model"
 	"log"
+
+	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/pkg/model"
 )
 
-// repo имеет тип интерфейс (2 метода)
+// repo имеет тип интерфейс
+// cервисный интерфейс для спец. функций
 type repo interface {
 	Get(uid, key string) (model.DataEl, error)
 	Put(uid, key string, value model.DataEl) error
@@ -14,19 +16,17 @@ type repo interface {
 	GetUn(shortlink string) (model.DataEl, error)
 }
 
-// service имеет тип структура
-// содержит член repo
+// Service - содержит член repo
 type Service struct {
 	repo repo
 }
 
-// конструктор Service
-// возвращает указатель на структуру с интерфейсом
-// что в repo подставим та структура и будет - главное методы должны иметь одинаковую сигнатуру и имя!
+// New - конструктор Service
 func New(repo repo) *Service {
 	return &Service{repo: repo}
 }
 
+// Put - when put to storage
 func (s *Service) Put(uid, key string, value model.DataEl) error {
 	if err := s.repo.Put(uid, key, value); err != nil {
 		log.Printf("service/Put: put repo err: %v", err)
@@ -36,6 +36,7 @@ func (s *Service) Put(uid, key string, value model.DataEl) error {
 	return nil
 }
 
+// Get - when get from storage
 func (s *Service) Get(uid, key string) (model.DataEl, error) {
 	value, err := s.repo.Get(uid, key)
 	if err != nil {
@@ -46,6 +47,7 @@ func (s *Service) Get(uid, key string) (model.DataEl, error) {
 	return value, nil
 }
 
+// Del when delete from storage
 func (s *Service) Del(uid, key string) error {
 	if err := s.repo.Del(uid, key); err != nil {
 		log.Printf("service/Del: del repo err: %v", err)
@@ -55,6 +57,7 @@ func (s *Service) Del(uid, key string) error {
 	return nil
 }
 
+// List - when get list of keys from storage
 func (s *Service) List(uid string) ([]string, error) {
 	items, err := s.repo.List(uid)
 	if err != nil {
@@ -65,6 +68,7 @@ func (s *Service) List(uid string) ([]string, error) {
 	return items, nil
 }
 
+// GetUn - get unique link unonimously from storage
 func (s *Service) GetUn(shortlink string) (model.DataEl, error) {
 	value, err := s.repo.GetUn(shortlink)
 	if err != nil {

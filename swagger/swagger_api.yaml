@@ -268,5 +268,3 @@ definitions:
               description: error message
               type: string
               readOnly: true
-
-

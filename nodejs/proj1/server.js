@@ -1,6 +1,6 @@
 
 //// local data 'storage'
-var token = '';  
+var token = '';
 var shorturl = '';
 var puturl = '';
 var putredirs = '';
@@ -54,18 +54,18 @@ function authAPI1(callback){
       },
       json : {'uid':username},
     };
-    
+
     var url = apiurl + '/user/auth';
-    
+
     console.log('http api auth call=',url,'username', options.json);
-    
+
     request(url, options, function(error, response, body) {
-        // субфукция получает респонз асинхронно 
-        // body - уже json 
+        // субфукция получает респонз асинхронно
+        // body - уже json
         if (error) {
             callback(error)
         };
-        
+
         if (!error ){
             callback(body)
         };
@@ -89,11 +89,11 @@ function delAPI1(callback){
     console.log('http api del call=',url);
 
     request(url, options, function(error, response, body) {
-        // субфукция получает респонз асинхронно 
+        // субфукция получает респонз асинхронно
         if (error) {
             callback(error)
         };
-        
+
         if (!error ){
             callback(body)
         };
@@ -123,11 +123,11 @@ function putAPI1(callback){
     console.log('http api put call=',url,'data=', options.json);
 
     request(url, options, function(error, response, body) {
-        // субфукция получает респонз асинхронно 
+        // субфукция получает респонз асинхронно
         if (error) {
             callback(error)
         };
-        
+
         if (!error ){
             callback(body)
         };
@@ -155,11 +155,11 @@ function postAPI1(callback){
     console.log('http api post (create) call=',url,'data=', options.json);
 
     request(url, options, function(error, response, body) {
-        // субфукция получает респонз асинхронно 
+        // субфукция получает респонз асинхронно
         if (error) {
             callback(error)
         };
-        
+
         if (!error ){
             callback(body)
         };
@@ -167,7 +167,7 @@ function postAPI1(callback){
 };
 //// get list of items
 function getAPI1(callback) {
-    
+
     var options = {
       method: 'GET',
       headers: {
@@ -182,11 +182,11 @@ function getAPI1(callback) {
     console.log('http call get api list=',url,'token=',token);
 
     request(url, options, function(error, response, body) {
-        // субфукция получает респонз асинхронно 
+        // субфукция получает респонз асинхронно
         if (error) {
             callback(error)
         };
-        
+
         if (!error ){
             callback(body)
         };
@@ -211,11 +211,11 @@ function getAPI2(callback) {
     console.log('http call get api link stat=',url);
 
     request(url, options, function(error, response, body) {
-        // субфукция получает респонз асинхронно 
+        // субфукция получает респонз асинхронно
         if (error) {
             callback(error)
         };
-        
+
         if (!error ){
             callback(body)
         };
@@ -250,7 +250,7 @@ app.get('/list', function(req, res) {
             console.log("mc=", mc);
 
             //strip datetime to short format
-            if ('data' in mc) {
+            if ('data' in mc && mc.data !== null) {
 
                 for (const x of mc.data) {
                     let res = x.datetime.split(".");
@@ -265,7 +265,7 @@ app.get('/list', function(req, res) {
         });
 
     } else {
-        res.render('page/unathorized', {username: ''});    
+        res.render('page/unathorized', {username: ''});
     };
 
 });
@@ -330,7 +330,7 @@ app.post('/edit', (req, res) => {
     // go to list page after link update
     res.redirect(nodejsurl+'/list');
 });
-    
+
 //// login form post reply
 app.post('/login', (req, res) => {
     // Login Code Here

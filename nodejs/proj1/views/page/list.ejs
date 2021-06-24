@@ -97,14 +97,14 @@
 
                <% for (var i = 0; i < mc.length; i++) { %>
                 <tr>
-                  
+
                   <td><a href="<%= api %>/shortopen/<%= mc[i].shorturl %>">Check link!: <%= mc[i].shorturl %></a> </td>
                     <td><%= mc[i].url %></td>
                     <td><%= mc[i].redirs %></td>
                     <td><%= mc[i].datetime %></td>
                     <td> <button class="MyDelButton" id="<%= mc[i].shorturl %>">Delete me!</button></td>
                     <td> <button class="MyEdButton" id="<%= mc[i].shorturl %>">Change me!</button></td>
-                </tr>    
+                </tr>
                <% } %>
             </table>
             <% } %>

@@ -10,9 +10,10 @@ import (
 
 // GetUserStorageKeys - get all keys for this user in repo
 func GetUserStorageKeys(request *http.Request, linkSvc linkSvc) ([]string, string, error) {
-	props, _ := request.Context().Value("props").(jwt.MapClaims)
+	props, _ := request.Context().Value(ctxKey{}).(jwt.MapClaims)
 	//fmt.Println(props["uid"])
 	UID := fmt.Sprintf("%v", props["uid"])
+
 	storageKeys, err := linkSvc.List(UID)
 	return storageKeys, UID, err
 }
@@ -28,10 +29,10 @@ func ValidateRequestShortLink(request *http.Request, linkSvc linkSvc) (string, s
 	}
 
 	params := mux.Vars(request)
-	shortUrl := params["shortlink"]
+	shortURL := params["shortlink"]
 
 	for _, storageKey := range storageKeys {
-		if storageKey == shortUrl {
+		if storageKey == shortURL {
 			return UID, storageKey, true
 		}
 	}

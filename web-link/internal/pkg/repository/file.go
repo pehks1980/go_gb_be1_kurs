@@ -3,15 +3,16 @@ package repository
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/pkg/model"
 	"io/ioutil"
 	"log"
 	"os"
 	"strings"
 	"sync"
+
+	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/pkg/model"
 )
 
-// main methods for a storage (a file repo)
+// RepoIf - main methods for a storage (a file repo)
 type RepoIf interface {
 	New(filename string) RepoIf
 	Get(uid, key string) (model.DataEl, error)
@@ -21,12 +22,14 @@ type RepoIf interface {
 	GetUn(shortlink string) (model.DataEl, error)
 }
 
+// FileRepo - структура для файло-стораджа
 type FileRepo struct {
 	sync.RWMutex
 	fileName string
 	fileData map[string]model.DataEl
 }
 
+// New - инициализация файлостораджа
 func (fr *FileRepo) New(filename string) RepoIf {
 	// init file repo
 	fileRepo := &FileRepo{
@@ -45,10 +48,6 @@ func (fr *FileRepo) New(filename string) RepoIf {
 	}
 
 	return fileRepo
-}
-
-func NewFileRepo(fileName string) *FileRepo {
-	return &FileRepo{fileName: fileName}
 }
 
 // DumpMapToFile - no lock, as its has been done in upper level
@@ -136,10 +135,11 @@ func (fr *FileRepo) Get(uid, key string) (model.DataEl, error) {
 	return model.DataEl{}, err
 }
 
-// find unique shortlink for shortopen + update redir count
+// GetUn - find unique shortlink in storage for shortopen api method
+// + update redir count (protected by lock)
 func (fr *FileRepo) GetUn(shortlink string) (model.DataEl, error) {
-	fr.RWMutex.RLock()
-	defer fr.RWMutex.RUnlock()
+	fr.RWMutex.Lock()
+	defer fr.RWMutex.Unlock()
 	// get data needed
 	// retrieve dat string
 	for key, datael := range fr.fileData {

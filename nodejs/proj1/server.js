@@ -312,10 +312,12 @@ app.post('/add', (req, res) => {
     //console.log(shorturl,puturl,putredirs)
      postAPI1(function(res /* post to api new link*/) {
          console.log('api res',res);
+
+         // after add go to list page
+
      });
 
-    console.log('click post accepted');
-    // after add go to list page
+    console.log('click add accepted');
     res.redirect(nodejsurl+'/list');
 });
 
@@ -350,7 +352,7 @@ app.post('/login', (req, res) => {
              token = res.accessToken;
          }
     });
-    console.log ('got authorization jwt token=', token)
+    //console.log ('got authorization jwt token=', token)
     //redir to /
     res.redirect(nodejsurl+'/');
 });

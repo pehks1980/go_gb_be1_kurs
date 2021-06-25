@@ -79,8 +79,10 @@ func (fr *FileRepo) FileRepoUnpackToStruct() error {
 	defer fr.RWMutex.Unlock()
 	// по ссылке извлекаем строку файлового хранилища
 	// читаем все в мапу и делаем поиск
-	jsonFile, err := os.Open(fr.fileName)
+	//jsonFile, err := os.Open(fr.fileName)
+	jsonFile, err := os.OpenFile(fr.fileName, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
+		log.Printf("json repo file %s open error", fr.fileName)
 		return err
 	}
 

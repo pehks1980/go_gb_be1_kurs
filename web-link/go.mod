@@ -1,4 +1,4 @@
-module github.com/pehks1980/go_gb_be1_kurs
+module github.com/pehks1980/go_gb_be1_kurs/web-link
 
 go 1.16
 

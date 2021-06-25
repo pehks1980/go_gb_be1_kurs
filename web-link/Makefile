@@ -15,7 +15,7 @@ test:
 	@go test ./filter/...
 # vet
 vet:
-	@go vet $$(go list ./... | grep -v native)
+	go vet $$(go list ./... | grep -v native)
 
 hooks:
 	pre-commit run --all-files

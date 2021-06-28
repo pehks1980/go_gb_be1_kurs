@@ -7,9 +7,10 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/pkg/model"
+
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
-	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/pkg/model"
 )
 
 // интерфейс очередного сервиса также имеет put get - для работы с файлохранилищем
@@ -29,15 +30,15 @@ func RegisterPublicHTTP(linkSvc linkSvc) *mux.Router {
 	// JWT authorization
 	r.HandleFunc("/user/auth", postAuth(linkSvc)).Methods(http.MethodPost)
 	r.HandleFunc("/token/refresh", postTokenRefresh(linkSvc)).Methods(http.MethodPost)
-	// main function
+	// Main function
 	r.HandleFunc("/shortopen/{shortlink}", getShortOpen(linkSvc)).Methods(http.MethodGet)
 	r.HandleFunc("/shortstat/{shortlink}", getShortStat(linkSvc)).Methods(http.MethodGet)
-	// links crud
+	// Links crud
 	r.HandleFunc("/links", postToLink(linkSvc)).Methods(http.MethodPost)
 	r.HandleFunc("/links/all", getFromLink(linkSvc)).Methods(http.MethodGet)
 	r.HandleFunc("/links/{shortlink}", putToLink(linkSvc)).Methods(http.MethodPut)
 	r.HandleFunc("/links/{shortlink}", delFromLink(linkSvc)).Methods(http.MethodDelete)
-
+	// MiddleWare first goes JWT second goes Logging
 	r.Use(JWTCheckMiddleware)
 	r.Use(LoggingMiddleware)
 	return r

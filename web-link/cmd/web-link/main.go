@@ -12,14 +12,12 @@ import (
 	"time"
 
 	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/app/endpoint"
-
-	// репозиторий (хранилище) 1 файло 2 память 3 pg sql(db)
 	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/pkg/repository"
+	// репозиторий (хранилище) 1 файло 2 память 3 pg sql(db)
 )
 
 // главная петля
 func main() {
-
 	log.Print("Starting the app")
 	// настройка порта, настроек хранилища, таймаут при закрытии сервиса
 	port := flag.String("port", "8000", "Port")

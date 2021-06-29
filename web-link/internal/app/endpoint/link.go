@@ -13,8 +13,10 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// интерфейс очередного сервиса также имеет put get - для работы с файлохранилищем
-// у "драйвера хранилища" методы
+//  linkSvc - интерфейс сервиса со стороны http
+//  также имеет put get del crud - для работы с файлохранилищем
+//  list - list all links for uid user
+//  GetUn - open link for redir and add 1 to redir count
 type linkSvc interface {
 	Get(uid, key string) (model.DataEl, error)
 	Put(uid, key string, value model.DataEl) error

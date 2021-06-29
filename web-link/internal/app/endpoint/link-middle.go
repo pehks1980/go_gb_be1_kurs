@@ -12,6 +12,7 @@ import (
 	"github.com/dgrijalva/jwt-go"
 )
 
+// lint error fix - did not like string type
 type ctxKey struct{}
 
 // LoggingMiddleware - logs any request to api

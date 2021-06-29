@@ -12,7 +12,7 @@ import (
 	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/pkg/model"
 )
 
-// RepoIf - main methods for a storage (a file repo)
+// RepoIf - main methods for a storage (a file repo) same as linkSVC
 type RepoIf interface {
 	New(filename string) RepoIf
 	Get(uid, key string) (model.DataEl, error)
@@ -23,6 +23,7 @@ type RepoIf interface {
 }
 
 // FileRepo - структура для файло-стораджа
+// fileData - мап содержимого файла хешированная as map key := datael.UID + ":" + datael.Shorturl
 type FileRepo struct {
 	sync.RWMutex
 	fileName string
@@ -75,7 +76,7 @@ func (fr *FileRepo) DumpMapToFile() error {
 
 // FileRepoUnpackToStruct - load file to map of structs
 func (fr *FileRepo) FileRepoUnpackToStruct() error {
-	fr.RWMutex.Lock()
+	fr.RWMutex.Lock() // rw lock while reading file to fr map structure
 	defer fr.RWMutex.Unlock()
 	// по ссылке извлекаем строку файлового хранилища
 	// читаем все в мапу и делаем поиск
@@ -118,7 +119,7 @@ func (fr *FileRepo) FileRepoUnpackToStruct() error {
 // Get - get data string from repo
 // uid:key - user:key
 func (fr *FileRepo) Get(uid, key string) (model.DataEl, error) {
-	fr.RWMutex.RLock()
+	fr.RWMutex.RLock() // read lock only
 	defer fr.RWMutex.RUnlock()
 	// get data needed
 	// retrieve dat string

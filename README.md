@@ -96,4 +96,4 @@ GetUn(shortlink string) (model.DataEl, error)<br>
 Запуск из этой папки командой: node server.js
 Заход: http://127.0.0.1:8090/
 
-![Иллюстрация к проекту](https://github.com/pehks1980/gb_go_be1_kurs/raw/master/image/image.png)
+![Иллюстрация к проекту](https://github.com/pehks1980/go_gb_be1_kurs/raw/master/image/image.png)

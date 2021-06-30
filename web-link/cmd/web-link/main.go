@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/app/config"
 	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/app/endpoint"
 	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/pkg/repository"
 	// репозиторий (хранилище) 1 файло 2 память 3 pg sql(db)
@@ -23,6 +24,20 @@ func main() {
 	port := flag.String("port", "8000", "Port")
 	storageName := flag.String("storage", "storage.json", "data storage")
 	shutdownTimeout := flag.Int64("shutdown_timeout", 3, "shutdown timeout")
+
+	// for heroku env variable PORT (supersedes flag cmd setting)
+	basepath, err := os.Getwd()
+	if err != nil {
+		log.Fatalf("path error %v ", err)
+	}
+	// load config
+	c, errc := config.New(basepath + "/.env")
+	if errc != nil {
+		log.Fatalf("config error : %v", err)
+		return
+	}
+	//reassign port val from .env file
+	port = &c.PORT
 	// инициализация файлового хранилища ук на структуру repo
 	var repoif repository.RepoIf
 	// подстановка в интерфейс соотвествующего хранилища
@@ -54,7 +69,7 @@ func main() {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 
-	log.Print("Started app")
+	log.Printf("Started app at port = %s", *port)
 	// ждет сигнала
 	sig := <-interrupt
 

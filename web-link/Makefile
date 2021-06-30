@@ -12,7 +12,7 @@ build:
 	@go build ./cmd/web-link/main.go
 # test filter
 test:
-	@go test ./filter/...
+	@go test ./...
 # vet
 vet:
 	go vet $$(go list ./... | grep -v native)

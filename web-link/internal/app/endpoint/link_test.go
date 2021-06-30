@@ -250,7 +250,7 @@ func TestHandler(t *testing.T) {
 		}
 	}
 
-	//error del
+	//error token refresh test //////////////////////////////////////////////////////////////////////////////
 	req, err = http.NewRequest("POST", "/token/refresh", nil)
 	if err != nil {
 		t.Fatal(err)

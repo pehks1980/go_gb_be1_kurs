@@ -34,7 +34,7 @@ jobs:
       run: go get -u golang.org/x/lint/golint
 
     - name: Check Golint
-      run: golint $(go list ./web-link/... | grep -v /vendor/)
+      run: cd web-link && golint $(go list ./... | grep -v /vendor/)
 
     - name: Check Golangci-lint
-      run: golangci-lint run ./web-link/...
+      run: cd web-link && golangci-lint run ./...

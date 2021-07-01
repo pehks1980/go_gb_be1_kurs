@@ -97,3 +97,9 @@ GetUn(shortlink string) (model.DataEl, error)<br>
 Заход: http://127.0.0.1:8090/
 
 ![Иллюстрация к проекту](https://github.com/pehks1980/go_gb_be1_kurs/blob/main/image/image.png)
+
+UPDATE: heroku api address: https://web-link19801.herokuapp.com <br>
+when starting web-client:<br>
+
+user@MacBook proj1 % node server.js<br>
+server node.js started http://127.0.0.1:8090  (API URL: https://web-link19801.herokuapp.com ) <br>

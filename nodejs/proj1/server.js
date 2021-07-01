@@ -7,7 +7,8 @@ var putredirs = '';
 var username = '';
 
 // api address
-const apiurl = 'http://127.0.0.1:8000';
+// const apiurl = 'http://127.0.0.1:8000';
+const apiurl = 'https://web-link19801.herokuapp.com';
 // nodejs (this) server address:port
 const nodejsurl = 'http://127.0.0.1:8090';
 // must be the same as nodejsurl -):
@@ -373,4 +374,4 @@ app.post('/delete', (req, res) => {
 
 //// start node server.js
 app.listen(srvPort,srvIP);
-console.log('server node.js started http://'+ srvIP +':' + srvPort);
+console.log('server node.js started http://'+ srvIP +':' + srvPort, ' (API URL:', apiurl, ')');

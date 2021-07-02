@@ -6,9 +6,9 @@ var puturl = '';
 var putredirs = '';
 var username = '';
 
-// api address
-//const apiurl = 'http://127.0.0.1:8000';
-const apiurl = 'https://web-link19801.herokuapp.com';
+// select api address
+const apiurl = 'http://127.0.0.1:8000'; //local
+//const apiurl = 'https://web-link19801.herokuapp.com'; // heroku
 // nodejs (this) server address:port
 const nodejsurl = 'http://127.0.0.1:8090';
 // must be the same as nodejsurl -):
@@ -198,27 +198,26 @@ function getAPI1(callback) {
 };
 //// get link item
 function getAPI2(callback) {
-
     var options = {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer '+token,
-      },
-      json : true,
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token,
+        },
+        json: true,
     };
 
     var url = apiurl + '/shortstat/' + shorturl;
 
-    console.log('http call get api link stat=',url);
+    console.log('http call get api link stat=', url);
 
-    request(url, options, function(error, response, body) {
+    request(url, options, function (error, response, body) {
         // субфукция получает респонз асинхронно
         if (error) {
             callback(error)
         };
 
-        if (!error ){
+        if (!error) {
             callback(body)
         };
 
@@ -283,7 +282,7 @@ app.get('/listupd', (req, res) => {
 
         getAPI1(function (mc /* mc api response is passed using callback */) {
             console.log("mc=", mc);
-            if ('errors' in mc) {
+            if ('errors'  in mc || 'Error' in mc) {
                 // no token
                 res.render('page/unathorized', {username: ''});
             }
@@ -321,7 +320,9 @@ app.get('/listupd', (req, res) => {
 
 
         });
-    };
+    } else {
+        res.render('page/unathorized', {username: ''});
+    }
 });
 
 //// login form
@@ -333,11 +334,15 @@ app.get('/edit', (req, res) => {
 
     shorturl = req.query.shorturl
     console.log(`edit link ${shorturl}`);
-    getAPI2(function(mc){
-         // get json from api put it as instance //called 'get shortstat/{link} api'
-        console.log("mc=", mc.data);
-        res.render('page/edit', {title : 'Edit Link', username: username, instance: mc.data[0]});
-    });
+    if (checktoken(token) == true) {
+        getAPI2(function (mc) {
+            // get json from api put it as instance //called 'get shortstat/{link} api'
+            console.log("mc=", mc.data);
+            res.render('page/edit', {title: 'Edit Link', username: username, instance: mc.data[0]});
+        });
+    }else{
+        res.render('page/unathorized', {username: ''});
+    }
 
 });
 //// add new link form

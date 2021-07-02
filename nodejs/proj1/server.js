@@ -7,7 +7,7 @@ var putredirs = '';
 var username = '';
 
 // api address
-// const apiurl = 'http://127.0.0.1:8000';
+//const apiurl = 'http://127.0.0.1:8000';
 const apiurl = 'https://web-link19801.herokuapp.com';
 // nodejs (this) server address:port
 const nodejsurl = 'http://127.0.0.1:8090';
@@ -32,6 +32,7 @@ function checktoken(token){
 //// express setup
 //// load the things we need
 const request = require('request');
+var ejs = require('ejs');
 var express = require('express');
 var app = express();
 // set the view engine to ejs
@@ -275,6 +276,54 @@ app.get('/list', function(req, res) {
     };
 
 });
+
+app.get('/listupd', (req, res) => {
+
+    if (checktoken(token) == true) {
+
+        getAPI1(function (mc /* mc api response is passed using callback */) {
+            console.log("mc=", mc);
+            if ('errors' in mc) {
+                // no token
+                res.render('page/unathorized', {username: ''});
+            }
+
+            if (mc.data !== null) {
+                // not empty list mc.data
+                // strip datetime to short format
+                for (const x of mc.data) {
+                    let res = x.datetime.split(".");
+                    let res1 = res[0].split("T");
+                    x.datetime = res1[1] + ' ' + res1[0];
+                    console.log(x.datetime);
+                };
+
+                ejs.renderFile('views/part/table.ejs', {mc: mc.data, api: apiurl}, {}, function (err, str) {
+                    // str => Rendered HTML string
+                    //console.log(str,err)
+                    result = {"table": str};
+                    res.send(result);
+                });
+
+            } else {
+                // empty list
+                //ejs.renderFile('views/part/table.ejs', {mc: mc.data, api: apiurl}, {}, function (err, str) {
+                    // str => Rendered HTML string
+                    //console.log(str,err)
+                    result = {"table": ""};
+                    res.send(result);
+                //});
+
+            }
+
+
+
+
+
+        });
+    };
+});
+
 //// login form
 app.get('/login', (req, res) => {
     res.render('page/login', {title : 'login to API', username: username,});
@@ -312,7 +361,7 @@ app.post('/add', (req, res) => {
 
     //console.log(shorturl,puturl,putredirs)
      postAPI1(function(res /* post to api new link*/) {
-         console.log('api res',res);
+         console.log('api res added=',res);
 
          // after add go to list page
 

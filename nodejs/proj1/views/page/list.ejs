@@ -3,74 +3,98 @@
 <head>
     <%- include('../part/head'); %>
     <script>
+        "use strict";
         window.onload = doStuff;
         //to ensure everything is found load page first
         function doStuff() {
 
             console.log('Client-side code running');
-            // listeners for delete buttons
-            var buttons = document.querySelectorAll(".MyDelButton");
-            var i = 0, length = buttons.length;
-            for (i; i < length; i++) {
-                if (document.addEventListener) {
-                    buttons[i].addEventListener("click", function() {
-                        // use keyword this to target clicked button
-                        console.log(`del button with key ${this.id} was clicked`);
-                        var id = this.id
-                        // send key to node js
-                        fetch('/delete', {method: 'POST',
-                            headers: {
-                                'Accept': 'application/json',
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({'shorturl': id})
-                        })
-                            .then(function(response) {
-                                if(response.ok) {
-                                    console.log('click was recorded');
-                                    window.location='<%= nodejs %>/list';
-                                    return;
-                                }
-                                throw new Error('Request failed.');
+
+            function doListeners() {
+                // listeners for delete buttons
+                var buttons = document.querySelectorAll(".MyDelButton");
+                var i = 0, length = buttons.length;
+                for (i; i < length; i++) {
+                    if (document.addEventListener) {
+                        buttons[i].addEventListener("click", function () {
+                            // use keyword this to target clicked button
+                            console.log(`del button with key ${this.id} was clicked`);
+                            var id = this.id
+                            // send key to node js
+                            fetch('/delete', {
+                                method: 'POST',
+                                headers: {
+                                    'Accept': 'application/json',
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({'shorturl': id})
                             })
-                            .catch(function(error) {
-                                console.log(error);
-                            });
+                                .then(function (response) {
+                                    if (response.ok) {
+                                        console.log('click del was recorded');
 
-                    });
-                } else {
-                    buttons[i].attachEvent("onclick", function() {
-                        // use buttons[i] to target clicked button
-                    });
-                };
+                                        return;
+                                    }
+                                    throw new Error('Request failed.');
+                                })
+                                .catch(function (error) {
+                                    console.log(error);
+                                });
+
+                        });
+                    } else {
+                        buttons[i].attachEvent("onclick", function () {
+                            // use buttons[i] to target clicked button
+                        });
+                    }
+                    ;
+                }
+                ;
+
+                //edit buttons
+                var buttonsEd = document.querySelectorAll(".MyEdButton");
+                var i = 0, length = buttonsEd.length;
+                for (i; i < length; i++) {
+                    if (document.addEventListener) {
+                        buttonsEd[i].addEventListener("click", function () {
+                            // use keyword this to target clicked button
+                            console.log(`button edit with key ${this.id} was clicked`);
+                            var id = this.id
+                            // send key to node js
+                            window.location = '<%= nodejs %>/edit?shorturl=' + id;
+
+                        });
+                    } else {
+                        buttonsEd[i].attachEvent("onclick", function () {
+                            // use buttons[i] to target clicked button
+                        });
+                    }
+                    ;
+                }
+                ;
+                // add link button handler
+                var addbutton = document.getElementById('addbutton');
+                addbutton.addEventListener('click', function (e) {
+                    console.log('button add was clicked');
+                    window.location = '<%= nodejs %>/add';
+
+                });
             };
-
-            //edit buttons
-            var buttonsEd = document.querySelectorAll(".MyEdButton");
-            var i = 0, length = buttonsEd.length;
-            for (i; i < length; i++) {
-                if (document.addEventListener) {
-                    buttonsEd[i].addEventListener("click", function() {
-                        // use keyword this to target clicked button
-                        console.log(`button edit with key ${this.id} was clicked`);
-                        var id = this.id
-                        // send key to node js
-                        window.location='<%= nodejs %>/edit?shorturl='+id;
-
+            // do update list each 1 second
+            setInterval(function() {
+                fetch('/listupd', {method: 'GET'})
+                    .then(function(response) {
+                        if(response.ok) return response.json();
+                        throw new Error('Request failed.');
+                    })
+                    .then(function(data) {
+                        document.getElementById('listtable').innerHTML = `${data.table}`;
+                        doListeners();
+                    })
+                    .catch(function(error) {
+                        console.log(error);
                     });
-                } else {
-                    buttonsEd[i].attachEvent("onclick", function() {
-                        // use buttons[i] to target clicked button
-                    });
-                };
-            };
-            // add link button handler
-            var addbutton = document.getElementById('addbutton');
-            addbutton.addEventListener('click', function(e) {
-                console.log('button add was clicked');
-                window.location='<%= nodejs %>/add';
-
-            });
+            }, 4000);
 
         };
     </script>
@@ -88,26 +112,9 @@
     <div class="col-sm-10">
         <div class="jumbotron">
             <h1>Look what links you've got!</h1>
-            <% if ( mc !== null) { %>
-            <!-- some js and/or html code here -->
-            <table>
-               <tr>
-                  <th>ShortURL</th><th>URL</th><th>Redirs</th><th>Added/Changed</th>
-               </tr>
-
-               <% for (var i = 0; i < mc.length; i++) { %>
-                <tr>
-
-                  <td><a href="<%= api %>/shortopen/<%= mc[i].shorturl %>">Check link!: <%= mc[i].shorturl %></a> </td>
-                    <td><%= mc[i].url %></td>
-                    <td><%= mc[i].redirs %></td>
-                    <td><%= mc[i].datetime %></td>
-                    <td> <button class="MyDelButton" id="<%= mc[i].shorturl %>">Delete me!</button></td>
-                    <td> <button class="MyEdButton" id="<%= mc[i].shorturl %>">Change me!</button></td>
-                </tr>
-               <% } %>
+            <table id="listtable">
+                <%- include('../part/table'); %>
             </table>
-            <% } %>
             <div>
                 <p>
                     <button id="addbutton">Add me!</button>

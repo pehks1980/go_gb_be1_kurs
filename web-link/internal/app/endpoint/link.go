@@ -26,7 +26,7 @@ type linkSvc interface {
 	List(uid string) ([]string, error)
 	GetUn(shortlink string) (string, error)
 	PutUser(value model.User) (string, error)
-	DelUser(name, email string) error
+	DelUser(uid string) error
 	GetUser(uid string) (model.User, error)
 	WhoAmI() uint64
 	PayUser(uidA, uidB, amount string) error

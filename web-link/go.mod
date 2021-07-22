@@ -8,4 +8,5 @@ require (
 	github.com/jackc/pgx/v4 v4.12.0
 	github.com/joho/godotenv v1.3.0
 	github.com/kelseyhightower/envconfig v1.4.0
+	github.com/stretchr/testify v1.7.0 // indirect
 )

@@ -22,7 +22,7 @@ type RepoIf interface {
 	GetUn(shortlink string) (string, error)
 	CloseConn()
 	PutUser(value model.User) (string, error)
-	DelUser(name, email string) error
+	DelUser(uid string) error
 	GetUser(uid string) (model.User, error)
 	WhoAmI() uint64
 	PayUser(uidA, uidB, amount string) error
@@ -260,7 +260,7 @@ func (fr *FileRepo) PutUser(value model.User) (string, error) {
 }
 
 // DelUser заглушки
-func (fr *FileRepo) DelUser(name, email string) error {
+func (fr *FileRepo) DelUser(uid string) error {
 	return nil
 }
 

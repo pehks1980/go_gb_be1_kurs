@@ -563,14 +563,14 @@ func (pgr *PgRepo) GetUser(uid string) (model.User, error) {
 
 // DelUser delete user
 // name - user name, email - email  = unique combination for user
-func (pgr *PgRepo) DelUser(name, email string) error {
+func (pgr *PgRepo) DelUser(uid string) error {
 	// delete user (and anything related to him)
-	grDelUser := func(ctx context.Context, dbpool *pgxpool.Pool, name, email string) error {
+	grDelUser := func(ctx context.Context, dbpool *pgxpool.Pool, uid string) error {
 		const sql = `
 	DELETE FROM users
-		WHERE name = $1 AND email = $2;
+		WHERE uid = $1
 	`
-		_, err := dbpool.Exec(ctx, sql, name, email)
+		_, err := dbpool.Exec(ctx, sql, uid)
 		if err != nil {
 			return fmt.Errorf("failed to del user: %w", err)
 		}
@@ -578,7 +578,7 @@ func (pgr *PgRepo) DelUser(name, email string) error {
 		return nil
 	}
 
-	err := grDelUser(pgr.CTX, pgr.DBPool, name, email)
+	err := grDelUser(pgr.CTX, pgr.DBPool, uid)
 	if err != nil {
 		return err
 	}

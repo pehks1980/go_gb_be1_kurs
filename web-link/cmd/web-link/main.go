@@ -22,7 +22,15 @@ func main() {
 	log.Print("Starting the app")
 	// настройка порта, настроек хранилища, таймаут при закрытии сервиса
 	portdef := flag.String("port", "8000", "Port")
-	storageName := flag.String("storage", "storage.json", "data storage")
+
+	storageType := flag.String("storage type", "pg", "data storage type: 'file' or 'pg'")
+
+	storageName := flag.String("storage name", "postgres://postuser:postpassword@192.168.1.204:5432/a4",
+		"pg: 'postgres://dbuser:dbpasswd@ip_address:port/dbname'  file: 'storage.json'")
+
+	//storageName := flag.String("storage name", "storage.json",
+	//	"pg: 'postgres://dbuser:dbpasswd@ip_address:port/dbname'  file: 'storage.json'")
+
 	shutdownTimeout := flag.Int64("shutdown_timeout", 3, "shutdown timeout")
 	/*
 		// for heroku env variable PORT (supersedes flag cmd setting)
@@ -46,17 +54,20 @@ func main() {
 		port = *portdef
 	}
 	// инициализация файлового хранилища ук на структуру repo
-	var repoif repository.RepoIf
+	var repoif, linkSVC repository.RepoIf
+
 	// подстановка в интерфейс соотвествующего хранилища
-	repoif = new(repository.FileRepo)
+	if *storageType == "file" {
+		repoif = new(repository.FileRepo)
+		linkSVC = repoif.New(*storageName)
+	}
+	if *storageType == "pg" {
+		repoif = new(repository.PgRepo)
+		linkSVC = repoif.New(*storageName)
+		defer linkSVC.CloseConn()
+	}
+
 	//repoif = new(repository.MemRepo)
-	//repoif = new(repository.PgRepo)
-
-	// вызов метода интерфейса - инициализация конфигa
-	linkSVC := repoif.New(*storageName)
-
-	//linkSVC := service.New(repoif) - интерфейс обертка можно использовать для тестинга/мокинга/логинга
-	// других сервис-функций
 
 	// repoif <-> linkSVC
 
@@ -87,4 +98,5 @@ func main() {
 	if err := serv.Shutdown(ctx); err != nil {
 		log.Printf("shutdown err: %v", err)
 	}
+
 }

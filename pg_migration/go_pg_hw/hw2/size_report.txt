@@ -1,0 +1,55 @@
+user@MacBook ~ % psql -h 192.168.1.204  -U postuser a2
+Password for user postuser:
+psql (13.3, server 13.0 (Debian 13.0-1.pgdg100+1))
+Type "help" for help.
+
+a2=# \dt
+               List of relations
+ Schema |        Name        | Type  |  Owner
+--------+--------------------+-------+----------
+ public | user_data          | table | postuser
+ public | users              | table | postuser
+ public | users_transactions | table | postuser
+(3 rows)
+
+a2=# \dt+
+                                 List of relations
+ Schema |        Name        | Type  |  Owner   | Persistence | Size  | Description
+--------+--------------------+-------+----------+-------------+-------+-------------
+ public | user_data          | table | postuser | permanent   | 80 kB |
+ public | users              | table | postuser | permanent   | 80 kB |
+ public | users_transactions | table | postuser | permanent   | 48 kB |
+(3 rows)
+
+a2=# select reltuples::bigint as estimate from pg_class where oid = 'public.users'::regclass;
+ estimate
+----------
+      101
+(1 row)
+
+a2=# select reltuples::bigint as estimate from pg_class where oid = 'public.user_data'::regclass;
+ estimate
+----------
+      100
+(1 row)
+
+a2=# select reltuples::bigint as estimate from pg_class where oid = 'public.users_transactions'::regclass;
+ estimate
+----------
+      100
+(1 row)
+
+a2=# \d+
+                                         List of relations
+ Schema |           Name            |   Type   |  Owner   | Persistence |    Size    | Description
+--------+---------------------------+----------+----------+-------------+------------+-------------
+ public | user_data                 | table    | postuser | permanent   | 80 kB      |
+ public | user_data_id_seq          | sequence | postuser | permanent   | 8192 bytes |
+ public | users                     | table    | postuser | permanent   | 80 kB      |
+ public | users_id_seq              | sequence | postuser | permanent   | 8192 bytes |
+ public | users_transactions        | table    | postuser | permanent   | 48 kB      |
+ public | users_transactions_id_seq | sequence | postuser | permanent   | 8192 bytes |
+(6 rows)
+
+root@ubuntu202n:~/IOTstack/volumes/postgres/data# du -hs
+114M	.

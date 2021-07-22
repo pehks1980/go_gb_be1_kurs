@@ -16,3 +16,12 @@ type DataEl struct {
 	Active   int       `json:"active"`
 	Redirs   int       `json:"redirs"`
 }
+
+//User - элемент model of pg relation User
+type User struct {
+	Name    string `json:"name"`
+	Passwd  string `json:"passwd"`
+	Email   string `json:"email"`
+	Role    string `json:"role"`
+	Balance string `json:"balance"`
+}

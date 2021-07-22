@@ -250,15 +250,16 @@ app.get('/list', function(req, res) {
         getAPI1(function(mc /* mc api response is passed using callback */) {
             console.log("mc=", mc);
 
-            //strip datetime to short format
-            if ('errors' in mc) {
-                // no token
+
+            if ('errors' in mc || 'Error' in mc) {
+                // error
                 res.render('page/unathorized', {username: ''});
             } else if (mc.data === null) {
                 // empty list
                 res.render('page/list', {mc: mc.data, username: username, api: apiurl, nodejs: nodejsurl});
             } else {
                 // not empty list
+                // strip datetime to short format
                 for (const x of mc.data) {
                     let res = x.datetime.split(".");
                     let res1 = res[0].split("T");
@@ -271,6 +272,7 @@ app.get('/list', function(req, res) {
         });
 
     } else {
+        // no token
         res.render('page/unathorized', {username: ''});
     };
 

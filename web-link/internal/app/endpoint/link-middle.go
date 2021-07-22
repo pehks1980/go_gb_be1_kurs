@@ -79,12 +79,16 @@ func JWTCheckMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		re := regexp.MustCompile(`/shortopen/`)
-		res := re.FindStringSubmatch(r.RequestURI)
-		if len(res) != 0 {
-			//bypass jwt check when authenticating
-			next.ServeHTTP(w, r)
-			return
+		checkif := 1 // db case svc.WhoAmI()
+		if checkif == 0 {
+			//bypass middle ware token logic in old version using file storage
+			re := regexp.MustCompile(`/shortopen/`)
+			res := re.FindStringSubmatch(r.RequestURI)
+			if len(res) != 0 {
+				//bypass jwt check when authenticating
+				next.ServeHTTP(w, r)
+				return
+			}
 		}
 
 		authHeader := strings.Split(r.Header.Get("Authorization"), "Bearer ")

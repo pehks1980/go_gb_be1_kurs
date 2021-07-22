@@ -104,7 +104,7 @@ when starting web-client:<br>
 user@MacBook proj1 % node server.js<br>
 server node.js started http://127.0.0.1:8090  (API URL: https://web-link19801.herokuapp.com ) <br>
 
-#posgres migrations make: (dir called `migrations`)
+#posgres migrations make: (dir called `migrations`)<br>
 -- go get -tags 'postgres' -u github.com/golang-migrate/migrate/cmd/migrate or brew install golang-migrate (mac)<br>
 -- migrate create -seq -ext sql -dir migrations init_schema<br>
 -- clean db eg 'a5' must exist: psql -h localhost -U postgres -w -c "create database a5;"<br>

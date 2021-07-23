@@ -208,7 +208,10 @@ func TestIntegrationSVC(t *testing.T) {
 
 	//run table tests in a cycle
 	for _, tt := range tests {
-		tt := tt
+		tt := tt // // capture range variable
+		// trick to make sure we pass each test case in this range when we run test in parallel
+		// (use t.Parallel()) in run loop
+		// though in sequential run it has no use ie https://eleni.blog/2019/05/11/parallel-test-execution-in-go/
 		t.Run(tt.name, func(t *testing.T) {
 			tt.UID = tt.prepare()
 			tt.alldata, tt.user, tt.err = tt.testfunc(tt.UID)

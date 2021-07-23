@@ -2,7 +2,8 @@
 
 package repository_test
 
-// go test --tags=integration .
+// go test --tags=integration . --run tests + integration tests. ,
+// '/ +build integration' avoids test to be runned by 'go test .'
 import (
 	"fmt"
 	"testing"

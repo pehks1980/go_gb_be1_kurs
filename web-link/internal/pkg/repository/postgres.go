@@ -67,6 +67,56 @@ type PgRepo struct {
 	DBPool *pgxpool.Pool
 }
 
+//AuthUser - check user&password ie autheticate and return UID if successful
+func (pgr *PgRepo) AuthUser(userAuth model.User) (string, error) {
+	// get user UID by name, password from users if exists return get UID
+	// and update lastlogin
+	const sql = `
+	SELECT UID, name, passwd FROM users
+		WHERE name = $1 AND passwd = $2;
+	`
+	rows, err := pgr.DBPool.Query(pgr.CTX, sql,
+		userAuth.Name,
+		userAuth.Passwd,
+	)
+
+	var user User
+
+	if err != nil {
+		return "", fmt.Errorf("failed to query data: %w", err) // Вызов Close нужен, чтобы вернуть соединение в пул
+	}
+
+	defer rows.Close()
+
+	for rows.Next() {
+		err = rows.Scan(&user.UID, &user.Name, &user.Passwd)
+		if err != nil {
+			return "", fmt.Errorf("failed to scan row: %w", err)
+		}
+	}
+
+	if rows.Err() != nil {
+		return "", fmt.Errorf("failed to read response: %w", rows.Err())
+	}
+
+	if userAuth.Name == user.Name && userAuth.Passwd == user.Passwd {
+		// update lastlogin
+		const sql = `
+		UPDATE users SET last_login = current_timestamp
+			WHERE UID = $1;
+	`
+		_, err = pgr.DBPool.Exec(pgr.CTX, sql, user.UID)
+
+		if err != nil {
+			return "", fmt.Errorf("failed to update userdata: %w", err)
+		}
+
+		return user.UID, nil
+	}
+
+	return "", nil
+}
+
 // WhoAmI - driver id 1-pg 0-file
 func (pgr *PgRepo) WhoAmI() uint64 {
 	return 1
@@ -291,7 +341,7 @@ func (pgr *PgRepo) Del(uid, key string, su bool) error {
 	if suid == uid {
 		err = grDel(pgr.CTX, pgr.DBPool, uid, key, true)
 	} else {
-		err = grDel(pgr.CTX, pgr.DBPool, uid, key, true)
+		err = grDel(pgr.CTX, pgr.DBPool, uid, key, false)
 	}
 
 	if err != nil {
@@ -460,7 +510,7 @@ func (pgr *PgRepo) PutUser(value model.User) (string, error) {
 
 		return id, nil
 	}
-
+	// todo generate md5 hash as uid
 	uid := value.Name + value.Email
 	passwd := value.Passwd
 	var role tUserRole

@@ -78,6 +78,11 @@ func JWTCheckMiddleware(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
+		if r.RequestURI == "/user/register" {
+			//bypass jwt check when authenticating
+			next.ServeHTTP(w, r)
+			return
+		}
 
 		checkif := 1 // db case svc.WhoAmI()
 		if checkif == 0 {

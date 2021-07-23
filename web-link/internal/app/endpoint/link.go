@@ -32,6 +32,7 @@ type linkSvc interface {
 	PayUser(uidA, uidB, amount string) error
 	FindSuperUser() (string, error)
 	GetAll() (model.Data, error)
+	AuthUser(user model.User) (string, error)
 }
 
 // RegisterPublicHTTP - регистрация роутинга путей типа urls.py для обработки сервером
@@ -41,6 +42,7 @@ func RegisterPublicHTTP(linkSvc linkSvc) *mux.Router {
 	// JWT authorization
 	r.HandleFunc("/user/auth", postAuth(linkSvc)).Methods(http.MethodPost)
 	r.HandleFunc("/token/refresh", postTokenRefresh(linkSvc)).Methods(http.MethodPost)
+	r.HandleFunc("/user/register", postRegister(linkSvc)).Methods(http.MethodPost)
 	// Main function
 	r.HandleFunc("/shortopen/{shortlink}", getShortOpen(linkSvc)).Methods(http.MethodGet)
 	r.HandleFunc("/shortstat/{shortlink}", getShortStat(linkSvc)).Methods(http.MethodGet)
@@ -53,6 +55,39 @@ func RegisterPublicHTTP(linkSvc linkSvc) *mux.Router {
 	r.Use(JWTCheckMiddleware)
 	r.Use(LoggingMiddleware)
 	return r
+}
+
+//postRegister - register new user
+func postRegister(svc linkSvc) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, request *http.Request) {
+		//json header check
+		contentType := request.Header.Get("Content-Type")
+		if contentType != "application/json" {
+			ResponseAPIError(w, 9, http.StatusBadRequest)
+			return
+		}
+
+		var jsonUser = model.User{}
+
+		err := json.NewDecoder(request.Body).Decode(&jsonUser)
+		if err != nil {
+			ResponseAPIError(w, 400, http.StatusBadRequest)
+			return
+		}
+
+		var err1 error
+		jsonUser.Role = "USER"
+		jsonUser.Balance = "100.00"
+
+		UID, err1 := svc.PutUser(jsonUser)
+
+		if err1 != nil {
+			ResponseAPIError(w, 10, http.StatusBadRequest)
+			return
+		}
+		log.Printf("NEW USER %s (UID=%s) is registered", jsonUser.Name, UID)
+		w.WriteHeader(http.StatusOK)
+	}
 }
 
 // postTokenRefresh - get new pair of jwt tokens when access token is expired
@@ -94,7 +129,7 @@ func postTokenRefresh(svc linkSvc) func(http.ResponseWriter, *http.Request) {
 	}
 }
 
-// postAuth - autheticate and give authorization token
+// postAuth - authenticate and give authorization token
 func postAuth(svc linkSvc) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, request *http.Request) {
 		//json header check
@@ -107,6 +142,46 @@ func postAuth(svc linkSvc) func(http.ResponseWriter, *http.Request) {
 		type TokenAnswer struct {
 			Access  string `json:"accessToken"`
 			Refresh string `json:"refreshToken"`
+		}
+
+		checkif := svc.WhoAmI()
+
+		if checkif == 1 {
+
+			var jsonPostUser = model.User{}
+
+			err := json.NewDecoder(request.Body).Decode(&jsonPostUser)
+			if err != nil {
+				ResponseAPIError(w, 400, http.StatusBadRequest)
+				return
+			}
+			var err1 error
+			UID, err1 := svc.AuthUser(jsonPostUser)
+
+			if err1 != nil || UID == "" {
+				log.Printf("USER %s Log in error.\n", jsonPostUser.Name)
+				ResponseAPIError(w, 10, http.StatusBadRequest)
+				return
+			}
+			log.Printf("USER %s Logged in.\n", jsonPostUser.Name)
+			tokenAccess, _ := GenJWTWithClaims(UID, 0)
+			tokenRefresh, _ := GenJWTWithClaims(UID, 1)
+
+			var jsonTokens = TokenAnswer{
+				Access:  tokenAccess,
+				Refresh: tokenRefresh,
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+
+			err = json.NewEncoder(w).Encode(jsonTokens)
+			if err != nil {
+				ResponseAPIError(w, 10, http.StatusBadRequest)
+				return
+			}
+
+			return
+
 		}
 
 		type PostJSONRq struct {
@@ -128,7 +203,7 @@ func postAuth(svc linkSvc) func(http.ResponseWriter, *http.Request) {
 
 		UID := jsonPostRq.UID
 
-		checkif := svc.WhoAmI()
+		checkif = svc.WhoAmI()
 
 		if checkif == 1 {
 
@@ -205,6 +280,7 @@ func delFromLink(linkSvc linkSvc) http.HandlerFunc {
 				params := mux.Vars(request)
 				storageKey = params["shortlink"]
 				flag = true
+				usefulUID = UID
 			}
 		}
 

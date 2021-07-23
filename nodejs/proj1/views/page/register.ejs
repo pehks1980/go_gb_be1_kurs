@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <%- include('../part/head'); %>
+</head>
+<body class="container">
+
+<header>
+    <%- include('../part/header'); %>
+</header>
+
+<main>
+    <div class="jumbotron">
+        <h1>This is great</h1>
+        <p>Register new user:</p>
+        <form action="/register" method="post">
+        <!-- user input-->
+        Username:<br>
+        <input type="text" name="username" placeholder="Username" required><br><br>
+        E-mail<br>
+        <input type="text" name="email" placeholder="E-mail" required><br><br>
+        Password:<br>
+        <input type="password" name="password" placeholder="Password" required><br><br>
+        <!-- submit button -->
+        <input type="submit" value="Register">
+        </form>
+    </div>
+</main>
+
+<footer>
+    <%- include('../part/footer'); %>
+</footer>
+
+</body>
+</html>

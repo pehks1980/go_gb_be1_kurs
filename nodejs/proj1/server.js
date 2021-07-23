@@ -47,14 +47,41 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 //// api cb funcs
 //// get token for uid
-function authAPI1(callback){
+function regAPI(callback, username, passwd, email){
 
     var options = {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      json : {'uid':username},
+      json : {'name':username,'passwd':passwd,'email':email},
+    };
+
+    var url = apiurl + '/user/register';
+
+    console.log('http api auth call=',url,'username=', options.json);
+
+    request(url, options, function(error, response, body) {
+        // субфукция получает респонз асинхронно
+        // body - уже json
+        if (error) {
+            callback(error)
+        };
+
+        if (!error ){
+            callback(body)
+        };
+    });
+};
+
+function authAPI1(callback, username, password){
+
+    var options = {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        json : {'name':username,'passwd':password},
     };
 
     var url = apiurl + '/user/auth';
@@ -331,6 +358,10 @@ app.get('/listupd', (req, res) => {
 app.get('/login', (req, res) => {
     res.render('page/login', {title : 'login to API', username: username,});
 });
+//// user register  form
+app.get('/register', (req, res) => {
+    res.render('page/register', {title : 'Register new user', username: username,});
+});
 //// pressed edit link button form (from list)
 app.get('/edit', (req, res) => {
 
@@ -399,6 +430,7 @@ app.post('/edit', (req, res) => {
 app.post('/login', (req, res) => {
     // Login Code Here
     username = req.body.username;
+    let password = req.body.password;
     console.log(`auth ${req.body.username}`)
     authAPI1(function(res /* get pair of tokens api */) {
          console.log('api auth res',res.accessToken);
@@ -408,8 +440,23 @@ app.post('/login', (req, res) => {
              // so we store token only if api is ok and we get authorization token
              token = res.accessToken;
          }
-    });
+    }, username, password);
     //console.log ('got authorization jwt token=', token)
+    //redir to /
+    res.redirect(nodejsurl+'/');
+});
+//// reg form new userpost reply
+app.post('/register', (req, res) => {
+    // Register Code Here
+    let username = req.body.username;
+    let email = req.body.email;
+    let password = req.body.password;
+    ///
+    console.log(`auth ${req.body.username}`)
+    regAPI(function(res) {
+        console.log('api register res',res);
+    }, username,password,email);
+
     //redir to /
     res.redirect(nodejsurl+'/');
 });

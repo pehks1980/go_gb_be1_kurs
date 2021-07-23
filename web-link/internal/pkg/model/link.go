@@ -17,7 +17,7 @@ type DataEl struct {
 	Redirs   int       `json:"redirs"`
 }
 
-//User - элемент model of pg relation User
+// User - элемент json
 type User struct {
 	Name    string `json:"name"`
 	Passwd  string `json:"passwd"`

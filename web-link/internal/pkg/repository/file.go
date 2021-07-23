@@ -28,6 +28,7 @@ type RepoIf interface {
 	PayUser(uidA, uidB, amount string) error
 	FindSuperUser() (string, error)
 	GetAll() (model.Data, error)
+	AuthUser(user model.User) (string, error)
 }
 
 // FileRepo - структура для файло-стораджа
@@ -36,6 +37,11 @@ type FileRepo struct {
 	sync.RWMutex
 	fileName string
 	fileData map[string]model.DataEl
+}
+
+//AuthUser - stub
+func (fr *FileRepo) AuthUser(user model.User) (string, error) {
+	return "", nil
 }
 
 // WhoAmI - identification of interface

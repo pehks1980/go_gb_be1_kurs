@@ -33,6 +33,7 @@ type linkSvc interface {
 	FindSuperUser() (string, error)
 	GetAll() (model.Data, error)
 	AuthUser(user model.User) (string, error)
+	GetAllUsers() (model.Users, error)
 }
 
 // RegisterPublicHTTP - регистрация роутинга путей типа urls.py для обработки сервером
@@ -43,6 +44,11 @@ func RegisterPublicHTTP(linkSvc linkSvc) *mux.Router {
 	r.HandleFunc("/user/auth", postAuth(linkSvc)).Methods(http.MethodPost)
 	r.HandleFunc("/token/refresh", postTokenRefresh(linkSvc)).Methods(http.MethodPost)
 	r.HandleFunc("/user/register", postRegister(linkSvc)).Methods(http.MethodPost)
+
+	r.HandleFunc("/users/all", getAllUserData(linkSvc)).Methods(http.MethodGet)
+	r.HandleFunc("/user/", getUserData(linkSvc)).Methods(http.MethodGet)
+	r.HandleFunc("/user/{uid}", getUserData(linkSvc)).Methods(http.MethodGet)
+
 	// Main function
 	r.HandleFunc("/shortopen/{shortlink}", getShortOpen(linkSvc)).Methods(http.MethodGet)
 	r.HandleFunc("/shortstat/{shortlink}", getShortStat(linkSvc)).Methods(http.MethodGet)
@@ -55,6 +61,68 @@ func RegisterPublicHTTP(linkSvc linkSvc) *mux.Router {
 	r.Use(JWTCheckMiddleware)
 	r.Use(LoggingMiddleware)
 	return r
+}
+
+// getAllUserData - suid method to get all users data for admin purposes
+func getAllUserData(svc linkSvc) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, request *http.Request) {
+		// we just take uid from token and reply with model user json
+		// if we have uid == suid in token we take get param uid and get this uid information with this model json
+		props, _ := request.Context().Value(ctxKey{}).(jwt.MapClaims)
+		UID := fmt.Sprintf("%v", props["uid"])
+		suid, _ := svc.FindSuperUser()
+		if UID != suid {
+			ResponseAPIError(w, 401, http.StatusBadRequest)
+			return
+		}
+
+		sqlData, err3 := svc.GetAllUsers()
+		if err3 != nil {
+			ResponseAPIError(w, 10, http.StatusBadRequest)
+			return
+		}
+		err2 := json.NewEncoder(w).Encode(sqlData)
+		if err2 != nil {
+			ResponseAPIError(w, 10, http.StatusBadRequest)
+			return
+		}
+		//send http reply
+		return
+	}
+}
+
+// getUserData - get one user info
+func getUserData(svc linkSvc) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, request *http.Request) {
+		// we just take uid from token and reply with model user json
+		// if we have uid == suid in token we take get param uid and get this uid information with this model json
+		props, _ := request.Context().Value(ctxKey{}).(jwt.MapClaims)
+		UID := fmt.Sprintf("%v", props["uid"])
+		suid, _ := svc.FindSuperUser()
+		var effectiveUID = UID
+		if UID == suid {
+			params := mux.Vars(request)
+			effectiveUID = params["uid"]
+			if effectiveUID == "" {
+				effectiveUID = UID
+			}
+		}
+
+		user, err := svc.GetUser(effectiveUID)
+		if err != nil {
+			ResponseAPIError(w, 10, http.StatusBadRequest)
+			return
+		}
+		//strip off passwd ...
+		user.Passwd = ""
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		err = json.NewEncoder(w).Encode(user)
+		if err != nil {
+			return
+		}
+
+	}
 }
 
 //postRegister - register new user
@@ -160,7 +228,7 @@ func postAuth(svc linkSvc) func(http.ResponseWriter, *http.Request) {
 
 			if err1 != nil || UID == "" {
 				log.Printf("USER %s Log in error.\n", jsonPostUser.Name)
-				ResponseAPIError(w, 10, http.StatusBadRequest)
+				ResponseAPIError(w, 12, http.StatusBadRequest)
 				return
 			}
 			log.Printf("USER %s Logged in.\n", jsonPostUser.Name)
@@ -600,6 +668,10 @@ func getShortOpen(linkSvc linkSvc) http.HandlerFunc {
 			//make payment of 10.00 for the superuser account from USER who opened link
 			//get UID from token
 
+			type Answer struct {
+				URL string `json:"url"`
+			}
+
 			amount := "10.0"
 			props, _ := request.Context().Value(ctxKey{}).(jwt.MapClaims)
 			//fmt.Println(props["uid"])
@@ -628,13 +700,28 @@ func getShortOpen(linkSvc linkSvc) http.HandlerFunc {
 				if err1 != nil {
 					log.Printf("Payment error, payment to cannot be done.. err: %v\n", err1)
 				}
+
 			} else {
-				log.Printf("user is not CREATOR, no payment available\n")
+				log.Printf("user is not USER, no payment available\n")
 			}
+
+			var jsonAns = Answer{
+				URL: URL,
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+
+			err = json.NewEncoder(w).Encode(jsonAns)
+			if err != nil {
+				ResponseAPIError(w, 10, http.StatusBadRequest)
+				return
+			}
+			return
+
 		}
 
 		//log.Printf("opening user %s link  %s (short is %s) redirs(++) %d \n", getElement.UID, getElement.URL, getElement.Shorturl, getElement.Redirs)
-		http.Redirect(w, request, URL, http.StatusSeeOther)
+		http.Redirect(w, request, URL, http.StatusFound)
 		//<a href="/shortopen/www.mail.ru">See Other</a>.
 		return
 

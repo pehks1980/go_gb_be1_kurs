@@ -86,7 +86,7 @@ func JWTCheckMiddleware(next http.Handler) http.Handler {
 
 		checkif := 1 // db case svc.WhoAmI()
 		if checkif == 0 {
-			//bypass middle ware token logic in old version using file storage
+			// bypass middle ware token logic in old version using file storage
 			re := regexp.MustCompile(`/shortopen/`)
 			res := re.FindStringSubmatch(r.RequestURI)
 			if len(res) != 0 {

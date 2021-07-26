@@ -67,7 +67,86 @@ type PgRepo struct {
 	DBPool *pgxpool.Pool
 }
 
-//AuthUser - check user&password ie autheticate and return UID if successful
+// GetAllUsers - suid method to get all users data
+func (pgr *PgRepo) GetAllUsers() (model.Users, error) {
+
+	grGetAllUsers := func(ctx context.Context, dbpool *pgxpool.Pool) ([]User, error) {
+		const sql = `
+			SELECT id, uid, name, passwd, email, is_active, created_on, balance::varchar,
+					last_login, is_balance_blocked, user_role FROM users;
+			`
+		rows, err := dbpool.Query(ctx, sql)
+
+		if err != nil {
+			return nil, fmt.Errorf("failed to query data: %w", err) // Вызов Close нужен, чтобы вернуть соединение в пул
+		}
+		defer rows.Close()
+
+		var users []User
+
+		for rows.Next() {
+			var user User
+
+			err = rows.Scan(&user.ID,
+				&user.UID,
+				&user.Name,
+				&user.Passwd,
+				&user.Email,
+				&user.IsActive,
+				&user.CreatedOn,
+				&user.Balance,
+				&user.LastLogin,
+				&user.IsBalanceBlocked,
+				&user.UserRole,
+			)
+
+			if err != nil {
+				return nil, fmt.Errorf("failed to scan row: %w", err)
+			}
+
+			users = append(users, user)
+		}
+
+		if rows.Err() != nil {
+			return nil, fmt.Errorf("failed to read response: %w", rows.Err())
+		}
+
+		return users, nil
+	}
+
+	users, err := grGetAllUsers(pgr.CTX, pgr.DBPool)
+	if err != nil {
+		return model.Users{}, err
+	}
+
+	//reload pg users to model user (under 'Data' array-struct)
+	var allusers model.Users
+	for _, pguser := range users {
+		//adjust field modelrole db - type , api - string
+		var modelrole string
+		switch pguser.UserRole {
+		case SUPERUSER:
+			modelrole = "SUPERUSER"
+		case USER:
+			modelrole = "USER"
+		case CREATOR:
+			modelrole = "CREATOR"
+		}
+
+		modeluser := model.User{UID: pguser.UID,
+			Name:    pguser.Name,
+			Email:   pguser.Email,
+			Role:    modelrole,
+			Balance: pguser.Balance,
+		}
+
+		allusers.Data = append(allusers.Data, modeluser)
+
+	}
+	return allusers, nil
+}
+
+// AuthUser - check user&password ie autheticate and return UID if successful
 func (pgr *PgRepo) AuthUser(userAuth model.User) (string, error) {
 	// get user UID by name, password from users if exists return get UID
 	// and update lastlogin

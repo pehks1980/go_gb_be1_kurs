@@ -29,6 +29,12 @@ type RepoIf interface {
 	FindSuperUser() (string, error)
 	GetAll() (model.Data, error)
 	AuthUser(user model.User) (string, error)
+	GetAllUsers() (model.Users, error)
+}
+
+//GetAllUsers - stub
+func (fr *FileRepo) GetAllUsers() (model.Users, error) {
+	return model.Users{}, nil
 }
 
 // FileRepo - структура для файло-стораджа

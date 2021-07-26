@@ -33,7 +33,9 @@
                                 .then(function (response) {
                                     if (response.ok) {
                                         console.log('click del was recorded');
-
+                                        if (response.redirect) {
+                                            document.location.href = response.redirect;
+                                        }
                                         return;
                                     }
                                     throw new Error('Request failed.');
@@ -71,7 +73,27 @@
 
                 }
 
-            };
+                //edit buttons
+                var buttonsCh = document.querySelectorAll(".MyChButton");
+                var i = 0, length = buttonsCh.length;
+                for (i; i < length; i++) {
+                    if (document.addEventListener) {
+                        buttonsCh[i].addEventListener("click", function () {
+                            // use keyword this to target clicked button
+                            console.log(`button check with key ${this.id} was clicked`);
+                            let id = this.id
+                            // send key to node js
+                            window.location.href = '<%= nodejs %>/check?shorturl=' + id;
+                        });
+                    } else {
+                        buttonsEd[i].attachEvent("onclick", function () {
+                            // use buttons[i] to target clicked button
+                        });
+                    }
+
+                }
+
+            }
 
             // add link button handler
             var addbutton = document.getElementById('addbutton');
@@ -111,7 +133,7 @@
 
 <header>
 <!--     // передача переменной -->
-     <%- include('../part/header', {variant:'compact'}); %>
+    <%- include('../part/header'); %>
 </header>
 
 <main>

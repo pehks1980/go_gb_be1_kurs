@@ -1,10 +1,15 @@
 
 //// local data 'storage'
 var token = '';
+var tokenPayload = ''
 var shorturl = '';
 var puturl = '';
 var putredirs = '';
-var username = '';
+var user = {
+        name : '',
+        role : '',
+        balance: ''
+    };
 
 // select api address
 const apiurl = 'http://127.0.0.1:8000'; //local
@@ -15,6 +20,11 @@ const nodejsurl = 'http://127.0.0.1:8090';
 const srvIP = '127.0.0.1';
 const srvPort = '8090';
 
+function jwtdecode(token) {
+    let decoded = jwt_decode(token);
+    console.log('token payload= ',decoded);
+    return decoded;
+}
 //// check if we have logged in
 function checktoken(token){
     if (token === undefined){
@@ -43,9 +53,70 @@ app.use(express.static('./views'));
 app.use(express.json());
 //post form data parser
 const bodyParser = require('body-parser');
+const jwt_decode = require('jwt-decode');
 app.use(bodyParser.urlencoded({ extended: true }));
 
 //// api cb funcs
+//// get token for uid
+function getUserAPI(callback, uid){
+
+    var options = {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer '+token,
+        },
+        json : true,
+    };
+
+    var url = apiurl + '/user/'
+
+    if (uid !== undefined ){
+        url = apiurl + '/user/'+uid
+    };
+
+    console.log('http api user get call=',url);
+
+    request(url, options, function(error, response, body) {
+        // субфукция получает респонз асинхронно
+        // body - уже json
+        if (error) {
+            callback(error)
+        };
+
+        if (!error ){
+            callback(body)
+        };
+    });
+};
+//// get token for uid
+function getAllUsersAPI(callback){
+
+    var options = {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer '+token,
+        },
+        json : true,
+    };
+
+    var url = apiurl + '/users/all';
+
+    console.log('http api user getall call=',url);
+
+    request(url, options, function(error, response, body) {
+        // субфукция получает респонз асинхронно
+        // body - уже json
+        if (error) {
+            callback(error)
+        };
+
+        if (!error ){
+            callback(body)
+        };
+    });
+};
 //// get token for uid
 function regAPI(callback, username, passwd, email){
 
@@ -91,15 +162,11 @@ function authAPI1(callback, username, password){
     request(url, options, function(error, response, body) {
         // субфукция получает респонз асинхронно
         // body - уже json
-        if (error) {
-            callback(error)
-        };
+        //console.log(response,body)
+        callback(response,body)
 
-        if (!error ){
-            callback(body)
-        };
     });
-};
+}
 //// delete item
 function delAPI1(callback){
 
@@ -118,14 +185,8 @@ function delAPI1(callback){
     console.log('http api del call=',url);
 
     request(url, options, function(error, response, body) {
-        // субфукция получает респонз асинхронно
-        if (error) {
-            callback(error)
-        };
-
-        if (!error ){
-            callback(body)
-        };
+        // results gets to callback
+            callback(error,response,body)
     });
 };
 /// put item
@@ -252,21 +313,68 @@ function getAPI2(callback) {
 
 };
 
+function getShortOpenAPI(callback) {
+    var options = {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token,
+        },
+        json: true,
+    };
+
+    var url = apiurl + '/shortopen/' + shorturl;
+
+    console.log('http call get api link open=', url);
+
+    request(url, options, function (error, response, body) {
+        // субфукция получает респонз асинхронно
+        if (error) {
+            callback(error)
+        };
+
+        if (!error) {
+            callback(body)
+        };
+
+    });
+
+};
+
+
 //// get handlers
 //// index page
 app.get('/', function(req, res) {
     var mascots = [
-        { name: 'Sammy', organization: "DigitalOcean", birth_year: 2012},
-        { name: 'Tux', organization: "Linux", birth_year: 1996},
-        { name: 'Moby Dock', organization: "Docker", birth_year: 2013}
+        {name: 'Sammy', organization: "DigitalOcean", birth_year: 2012},
+        {name: 'Tux', organization: "Linux", birth_year: 1996},
+        {name: 'Moby Dock', organization: "Docker", birth_year: 2013}
     ];
     var tagline = "No programming concept is complete without a cute animal mascot.";
 
-    res.render('page/index', {
-        mascots: mascots,
-        tagline: tagline,
-        username: username,
-    });
+    if (token !== '') {
+        getUserAPI(
+            function (res2) {
+                user.name = res2.name
+                user.role = res2.role
+                user.balance = res2.balance
+                console.log('api getUserAPI res', res2);
+
+                //res.redirect(nodejsurl+'/list');
+                res.render('page/index', {
+                    mascots: mascots,
+                    tagline: tagline,
+                    user: user,
+                });
+
+            });
+    } else {
+        res.render('page/index', {
+            mascots: mascots,
+            tagline: tagline,
+            user: user,
+        });
+    }
 });
 
 //// list items page
@@ -274,16 +382,22 @@ app.get('/list', function(req, res) {
 
     if (checktoken(token) == true) {
 
+        console.log("user=",user)
+
         getAPI1(function(mc /* mc api response is passed using callback */) {
             console.log("mc=", mc);
 
 
             if ('errors' in mc || 'Error' in mc) {
                 // error
-                res.render('page/unathorized', {username: ''});
+                res.render('page/unathorized', {user: user});
             } else if (mc.data === null) {
                 // empty list
-                res.render('page/list', {mc: mc.data, username: username, api: apiurl, nodejs: nodejsurl});
+                res.render('page/list', {mc: mc.data,
+                    user: user,
+                    api: apiurl,
+                    nodejs: nodejsurl
+                });
             } else {
                 // not empty list
                 // strip datetime to short format
@@ -293,14 +407,18 @@ app.get('/list', function(req, res) {
                     x.datetime = res1[1] + ' ' + res1[0];
                     console.log(x.datetime);
                 }
-                res.render('page/list', {mc: mc.data, username: username, api: apiurl, nodejs: nodejsurl});
+                res.render('page/list', {mc: mc.data,
+                    user: user,
+                    api: apiurl,
+                    nodejs: nodejsurl
+                });
             };
 
         });
 
     } else {
         // no token
-        res.render('page/unathorized', {username: ''});
+        res.render('page/unathorized', {user: null});
     };
 
 });
@@ -313,7 +431,7 @@ app.get('/listupd', (req, res) => {
             console.log("mc=", mc);
             if ('errors'  in mc || 'Error' in mc) {
                 // no token
-                res.render('page/unathorized', {username: ''});
+                res.render('page/unathorized', {user: user,});
             }
 
             if (mc.data !== null) {
@@ -350,18 +468,41 @@ app.get('/listupd', (req, res) => {
 
         });
     } else {
-        res.render('page/unathorized', {username: ''});
+        res.render('page/unathorized', {user: user,});
     }
 });
 
 //// login form
 app.get('/login', (req, res) => {
-    res.render('page/login', {title : 'login to API', username: username,});
+    res.render('page/login', {title : 'login to API', user: user,});
 });
 //// user register  form
 app.get('/register', (req, res) => {
-    res.render('page/register', {title : 'Register new user', username: username,});
+    res.render('page/register', {title : 'Register new user', user: user,});
 });
+
+//// pressed check link button form (from list)
+app.get('/check', (req, res) => {
+
+    shorturl = req.query.shorturl
+    console.log(`edit link ${shorturl}`);
+    if (checktoken(token) == true) {
+        getShortOpenAPI(function (mc) {
+            // get json from api put it as instance //called 'get shortstat/{link} api'
+            console.log("mc=", mc);
+            if (mc.url !== undefined) {
+                res.redirect(mc.url)
+            } else {
+                // no edit data - silently go to /
+                res.redirect('/');
+            }
+        });
+    }else{
+        res.render('page/unathorized', {user: user});
+    }
+
+});
+
 //// pressed edit link button form (from list)
 app.get('/edit', (req, res) => {
 
@@ -371,16 +512,21 @@ app.get('/edit', (req, res) => {
         getAPI2(function (mc) {
             // get json from api put it as instance //called 'get shortstat/{link} api'
             console.log("mc=", mc.data);
-            res.render('page/edit', {title: 'Edit Link', username: username, instance: mc.data[0]});
+            if (mc.data !== undefined) {
+                res.render('page/edit', {title: 'Edit Link', user: user, instance: mc.data[0]});
+            } else {
+                // no edit data - silently go to /
+                res.redirect('/');
+            }
         });
     }else{
-        res.render('page/unathorized', {username: ''});
+        res.render('page/unathorized', {user: user});
     }
 
 });
 //// add new link form
 app.get('/add', (req, res) => {
-    res.render('page/add', {title : 'add new link', username: username,});
+    res.render('page/add', {title : 'add new link', user: user,});
 });
 
 //// POST handlers
@@ -398,15 +544,22 @@ app.post('/add', (req, res) => {
     putredirs = req.body.redirs;
 
     //console.log(shorturl,puturl,putredirs)
-     postAPI1(function(res /* post to api new link*/) {
-         console.log('api res added=',res);
-
+     postAPI1(function(res1 /* post to api new link*/) {
+         console.log('api res added=',res1);
          // after add go to list page
+         getUserAPI(
+             function (res2) {
+                 user.name = res2.name
+                 user.role = res2.role
+                 user.balance = res2.balance
+                 console.log('api getUserAPI res',res2);
+                 console.log('click add accepted');
+                 res.redirect(nodejsurl+'/list');
+             });
 
      });
 
-    console.log('click add accepted');
-    res.redirect(nodejsurl+'/list');
+
 });
 
 //// edit link post handler button click
@@ -418,32 +571,59 @@ app.post('/edit', (req, res) => {
     puturl = req.body.url;
     putredirs = req.body.redirs;
 
-    putAPI1(function(res /* update link*/) {
-         console.log('api res',res);
+    putAPI1(function(res1 /* update link*/) {
+         console.log('api res',res1);
+         console.log('click put accepted');// go to list page after link update
+         res.redirect(nodejsurl+'/list');
      });
-    console.log('click put accepted');
-    // go to list page after link update
-    res.redirect(nodejsurl+'/list');
+
+
 });
 
 //// login form post reply
 app.post('/login', (req, res) => {
     // Login Code Here
-    username = req.body.username;
+    let username = req.body.username;
     let password = req.body.password;
     console.log(`auth ${req.body.username}`)
-    authAPI1(function(res /* get pair of tokens api */) {
-         console.log('api auth res',res.accessToken);
-         // store access jwt token
-         if (res.accessToken !== null){
-             // if api is not responding we get undefined res!!!
-             // so we store token only if api is ok and we get authorization token
-             token = res.accessToken;
-         }
+    authAPI1(function(resp,body) {
+        console.log('api auth res',resp.statusCode, 'body=',body);
+        if (resp.statusCode === 200){
+            console.log('api auth res', body.accessToken);
+            // store access jwt token
+            if (body.accessToken !== null) {
+                // if api is not responding we get undefined res!!!
+                // so we store token only if api is ok and we get authorization token
+                token = body.accessToken;
+                tokenPayload = jwtdecode(token)
+                let uid = tokenPayload.uid
+                getUserAPI(
+                    function (res1) {
+                        user.name = res1.name
+                        user.role = res1.role
+                        user.balance = res1.balance
+                        console.log('api getUserAPI res', res1);
+                        console.log('redirect to ', nodejsurl + '/', 'user=', user);
+                        res.redirect(nodejsurl + '/');
+                    });
+
+
+                /*
+                getAllUsersAPI(
+                    function (res) {
+                        console.log('api getUsersAPI res',res);
+
+                    });
+
+                 */
+            }
+        }
+        else {
+            //not sucessful
+            res.render('page/unathorized', {user: user});
+        }
     }, username, password);
-    //console.log ('got authorization jwt token=', token)
-    //redir to /
-    res.redirect(nodejsurl+'/');
+
 });
 //// reg form new userpost reply
 app.post('/register', (req, res) => {
@@ -453,12 +633,12 @@ app.post('/register', (req, res) => {
     let password = req.body.password;
     ///
     console.log(`auth ${req.body.username}`)
-    regAPI(function(res) {
-        console.log('api register res',res);
+    regAPI(function(res1) {
+        console.log('api register res',res1);
+        //redir to /
+        res.redirect(nodejsurl+'/login');
     }, username,password,email);
 
-    //redir to /
-    res.redirect(nodejsurl+'/');
 });
 //// delete item post button click
 app.post('/delete', (req, res) => {
@@ -467,12 +647,22 @@ app.post('/delete', (req, res) => {
     //store key link for api call
     shorturl = req.body.shorturl;
 
-    delAPI1(function(res /* api del call*/) {
-         console.log('api res',res);
+    delAPI1(function(err,res1,body /* api del call*/) {
+        console.log('api delete err=',err, 'res1=', res1.statusCode, 'body=',body);
+        console.log('click del accepted');
+        if (res1.statusCode !== 200 ){
+            console.log('click redir / ');
+            //we cant redir to POST
+            //res.redirect(nodejsurl+'/');
+        } else {
+            res.setHeader('Content-Type', 'application/json');
+            console.log('click redir /list');
+            ///res.redirect('/');
+        }
+
     });
 
-    console.log('click del accepted');
-    res.redirect(nodejsurl+'/list');
+
 });
 
 //// start node server.js

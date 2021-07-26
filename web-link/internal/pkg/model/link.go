@@ -2,7 +2,7 @@ package model
 
 import "time"
 
-// Data  - json array
+// Data  - json array for Data
 type Data struct {
 	Data []DataEl `json:"data"`
 }
@@ -17,8 +17,14 @@ type DataEl struct {
 	Redirs   int       `json:"redirs"`
 }
 
+// Users - array of user for json
+type Users struct {
+	Data []User `json:"data"`
+}
+
 // User - элемент json
 type User struct {
+	UID     string `json:"uid"`
 	Name    string `json:"name"`
 	Passwd  string `json:"passwd"`
 	Email   string `json:"email"`

@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"log"
 	"net"
@@ -73,7 +74,7 @@ func (pgr *PgRepo) GetAllUsers() (model.Users, error) {
 	grGetAllUsers := func(ctx context.Context, dbpool *pgxpool.Pool) ([]User, error) {
 		const sql = `
 			SELECT id, uid, name, passwd, email, is_active, created_on, balance::varchar,
-					last_login, is_balance_blocked, user_role FROM users;
+					last_login, is_balance_blocked, user_role FROM users ORDER BY user_role, name;
 			`
 		rows, err := dbpool.Query(ctx, sql)
 
@@ -561,6 +562,13 @@ func (pgr *PgRepo) GetUn(shortlink string) (string, error) {
 // additional methods for 'improved' interface
 // user crud
 
+// MyHash256 - generate hash SHA
+func MyHash256(seq string) string {
+	data := []byte(seq)
+	hash := sha256.Sum256(data)
+	return fmt.Sprintf("%x", hash[:15])
+}
+
 // PutUser new user add or update
 func (pgr *PgRepo) PutUser(value model.User) (string, error) {
 
@@ -569,11 +577,12 @@ func (pgr *PgRepo) PutUser(value model.User) (string, error) {
 	INSERT INTO users (uid, name, passwd, email, user_role, created_on, last_login, balance)
     	VALUES ($1, $2, $3, $4, $5, current_timestamp, current_timestamp, $6::numeric)
 		ON CONFLICT ON CONSTRAINT users_uid_key
-		DO UPDATE SET passwd = excluded.passwd,
-                      last_login = excluded.last_login,
-                      balance = excluded.balance
+		DO UPDATE SET last_login = excluded.last_login,
+                      balance = excluded.balance,
+                      user_role = excluded.user_role
 		returning id;
 	`
+		//passwd = excluded.passwd,
 		var id int
 		err := dbpool.QueryRow(ctx, sql,
 			user.UID,
@@ -589,8 +598,8 @@ func (pgr *PgRepo) PutUser(value model.User) (string, error) {
 
 		return id, nil
 	}
-	// todo generate md5 hash as uid
-	uid := value.Name + value.Email
+	//  generate hash as uid
+	uid := MyHash256(value.Name + value.Email)
 	passwd := value.Passwd
 	var role tUserRole
 	switch value.Role {
@@ -610,7 +619,7 @@ func (pgr *PgRepo) PutUser(value model.User) (string, error) {
 		IsActive:         true,
 		UserRole:         role,
 		IsBalanceBlocked: false,
-		Balance:          "100.00",
+		Balance:          value.Balance,
 	}
 
 	_, err := grAddUser(pgr.CTX, pgr.DBPool, &user)

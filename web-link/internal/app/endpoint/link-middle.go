@@ -29,7 +29,17 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 			UID,
 			time.Since(start),
 		)
+		/*
+			log.Printf("--> %s %s", r.Method, r.URL.Path)
+
+			lrw := negroni.NewResponseWriter(w)
+			next.ServeHTTP(lrw, r)
+
+			statusCode := lrw.Status()
+			log.Printf("<-- %d %s", statusCode, http.StatusText(statusCode))
+		*/
 	})
+
 }
 
 // GenJWTWithClaims - generate jwt tokens pair

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <%- include('../part/head'); %>
+</head>
+<body class="container">
+
+<header>
+    <!--     // передача переменной -->
+    <%- include('../part/header', {variant:'compact'}); %>
+</header>
+
+<main>
+    <div class="row">
+
+        <!--<div class="col-sm-8">
+            <div class="jumbotron">
+                <h1>This is great</h1>
+                <p>Welcome to templating using EJS</p>
+            </div>
+        </div>-->
+
+        <div class="col-sm-8">
+            <div class="jumbotron">
+                <h1>Edit User:</h1>
+
+                <form action="/upduser" method="post">
+                    <!-- user input-->
+                    UID:<br>
+                    <input type="text" name="uid" placeholder="uid" value="<%= instance.uid %>"><br><br>
+                    Name:<br>
+                    <input type="text" name="name" placeholder="Name" value="<%= instance.name %>"><br><br>
+                    E-mail:<br>
+                    <input type="text" name="email" placeholder="E-mail" value="<%= instance.email %>" readonly><br><br>
+                    Role:<br>
+                    <input type="text" name="role" placeholder="Role" value="<%= instance.role %>"><br><br>
+                    Balance:<br>
+                    <input type="text" name="balance" placeholder="Balance" value="<%= instance.balance %>"><br><br>
+                    <!-- submit button -->
+                    <input type="submit" value="Update!">
+                </form>
+
+            </div>
+        </div>
+    </div>
+</main>
+
+<footer>
+    <%- include('../part/footer'); %>
+</footer>
+
+</body>
+</html>

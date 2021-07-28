@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/pkg/repository"
+
 	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/pkg/model"
 
 	"github.com/dgrijalva/jwt-go"
@@ -49,6 +51,9 @@ func RegisterPublicHTTP(linkSvc linkSvc) *mux.Router {
 	r.HandleFunc("/user/", getUserData(linkSvc)).Methods(http.MethodGet)
 	r.HandleFunc("/user/{uid}", getUserData(linkSvc)).Methods(http.MethodGet)
 
+	r.HandleFunc("/user/{uid}", putUserData(linkSvc)).Methods(http.MethodPut)
+	r.HandleFunc("/user/{uid}", delUserData(linkSvc)).Methods(http.MethodDelete)
+
 	// Main function
 	r.HandleFunc("/shortopen/{shortlink}", getShortOpen(linkSvc)).Methods(http.MethodGet)
 	r.HandleFunc("/shortstat/{shortlink}", getShortStat(linkSvc)).Methods(http.MethodGet)
@@ -61,6 +66,87 @@ func RegisterPublicHTTP(linkSvc linkSvc) *mux.Router {
 	r.Use(JWTCheckMiddleware)
 	r.Use(LoggingMiddleware)
 	return r
+}
+
+// delUserData - del user from admin (by suid)
+func delUserData(svc linkSvc) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, request *http.Request) {
+		// check if uid == suid
+		// if yes delete user, which uid is in json
+		props, _ := request.Context().Value(ctxKey{}).(jwt.MapClaims)
+		UID := fmt.Sprintf("%v", props["uid"])
+		suid, _ := svc.FindSuperUser()
+		if UID != suid {
+			ResponseAPIError(w, 401, http.StatusBadRequest)
+			return
+		}
+		params := mux.Vars(request)
+		effectiveUID := params["uid"]
+		// check user to delete is not SU
+		if effectiveUID == suid {
+			ResponseAPIError(w, 401, http.StatusBadRequest)
+			return
+		}
+		err := svc.DelUser(effectiveUID)
+		if err != nil {
+			ResponseAPIError(w, 10, http.StatusBadRequest)
+			return
+		}
+		return
+	}
+}
+
+// putUserData - update user from admin (by suid)
+func putUserData(svc linkSvc) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, request *http.Request) {
+		// check if uid == suid
+		// if yes delete user, which uid is in json
+		props, _ := request.Context().Value(ctxKey{}).(jwt.MapClaims)
+		UID := fmt.Sprintf("%v", props["uid"])
+		suid, _ := svc.FindSuperUser()
+		if UID != suid {
+			ResponseAPIError(w, 401, http.StatusBadRequest)
+			return
+		}
+		params := mux.Vars(request)
+		effectiveUID := params["uid"]
+
+		contentType := request.Header.Get("Content-Type")
+		if contentType != "application/json" {
+			ResponseAPIError(w, 9, http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		var user = model.User{}
+		//found key, work with body
+		err := json.NewDecoder(request.Body).Decode(&user)
+		if err != nil {
+			ResponseAPIError(w, 9, http.StatusBadRequest)
+			return
+		}
+		user.UID = effectiveUID
+		//looks ok, update user storage
+		//check user name and email -> user key when put should be the same
+		checkUID := repository.MyHash256(user.Name + user.Email)
+		if effectiveUID != checkUID {
+			ResponseAPIError(w, 404, http.StatusBadRequest)
+			return
+		}
+
+		_, err = svc.PutUser(user)
+		if err != nil {
+			ResponseAPIError(w, 9, http.StatusBadRequest)
+			return
+		}
+		// form answer json
+		err = json.NewEncoder(w).Encode(user)
+		if err != nil {
+			ResponseAPIError(w, 9, http.StatusBadRequest)
+			return
+		}
+		return
+
+	}
 }
 
 // getAllUserData - suid method to get all users data for admin purposes

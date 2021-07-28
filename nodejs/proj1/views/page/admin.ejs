@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <%- include('../part/head'); %>
+    <script>
+        "use strict";
+        window.onload = doStuff;
+        //to ensure everything is found load page first
+        function doStuff() {
+
+            console.log('Client-side code running');
+            //doListeners();
+
+            function doListeners() {
+                // listeners for delete buttons
+                var buttons = document.querySelectorAll(".MyDelButton");
+                var i = 0, length = buttons.length;
+                for (i; i < length; i++) {
+                    if (document.addEventListener) {
+                        buttons[i].addEventListener("click", function () {
+                            // use keyword this to target clicked button
+                            console.log(`del button with key ${this.id} was clicked`);
+                            var id = this.id
+                            // send key to node js
+                            fetch('/deluser', {
+                                method: 'POST',
+                                headers: {
+                                    'Accept': 'application/json',
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({'uid': id})
+                            })
+                                .then(function (response) {
+                                    if (response.ok) {
+                                        console.log('click del was recorded');
+                                        return;
+                                    }
+                                    throw new Error('Request failed.');
+                                })
+                                .catch(function (error) {
+                                    console.log(error);
+                                });
+
+                            window.location.href = '<%= nodejs %>/admin';
+                        });
+                    } else {
+                        buttons[i].attachEvent("onclick", function () {
+                            // use buttons[i] to target clicked button
+                        });
+                    }
+                }
+
+                //edit buttons
+                var buttonsEd = document.querySelectorAll(".MyEdButton");
+                var i = 0, length = buttonsEd.length;
+                for (i; i < length; i++) {
+                    if (document.addEventListener) {
+                        buttonsEd[i].addEventListener("click", function () {
+                            // use keyword this to target clicked button
+                            console.log(`button edit with key ${this.id} was clicked`);
+                            var id = this.id
+                            // send key to node js
+                            window.location.href = '<%= nodejs %>/upduser?uid=' + id;
+
+                        });
+                    } else {
+                        buttonsEd[i].attachEvent("onclick", function () {
+                            // use buttons[i] to target clicked button
+                        });
+                    }
+
+                }
+
+            }
+
+            doListeners();
+
+        }
+    </script>
+</head>
+<body class="container">
+
+<header>
+    <!--     // передача переменной -->
+    <%- include('../part/header'); %>
+</header>
+
+<main>
+    <div class="row">
+
+        <div class="col-sm-10">
+            <div class="jumbotron">
+                <h1>Look what users you've got!</h1>
+                <table id="listtable">
+                    <% if ( mc !== null) { %>
+                        <!-- some js and/or html code here -->
+                        <tr>
+                            <th>No</th><th>User</th><th>E-Mail</th><th>Role</th>
+                        </tr>
+
+                        <% for (var i = 0; i < mc.length; i++) { %>
+                            <tr>
+                                <td><%= i+1 %></td>
+                                <td><%= mc[i].name %></td>
+                                <td><%= mc[i].email %></td>
+                                <td><%= mc[i].role %></td>
+                                <td><%= mc[i].balance %></td>
+                                <td> <button class="MyDelButton" id="<%= mc[i].uid %>" >Delete</button></td>
+                                <td> <button class="MyEdButton" id="<%= mc[i].uid %>" >Update</button></td>
+                            </tr>
+                        <% } %>
+
+                    <% } %>
+                </table>
+
+            </div>
+        </div>
+
+    </div>
+</main>
+
+<footer>
+    <%- include('../part/footer'); %>
+</footer>
+
+</body>
+</html>

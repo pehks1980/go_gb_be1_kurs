@@ -124,20 +124,21 @@ func (pgr *PgRepo) GetAllUsers() (model.Users, error) {
 	var allusers model.Users
 	for _, pguser := range users {
 		//adjust field modelrole db - type , api - string
-		var modelrole string
-		switch pguser.UserRole {
-		case SUPERUSER:
-			modelrole = "SUPERUSER"
-		case USER:
-			modelrole = "USER"
-		case CREATOR:
-			modelrole = "CREATOR"
-		}
-
+		/*
+			var modelrole string
+			switch pguser.UserRole {
+			case SUPERUSER:
+				modelrole = "SUPERUSER"
+			case USER:
+				modelrole = "USER"
+			case CREATOR:
+				modelrole = "CREATOR"
+			}*/
+		//modelrole := string(pguser.UserRole)
 		modeluser := model.User{UID: pguser.UID,
 			Name:    pguser.Name,
 			Email:   pguser.Email,
-			Role:    modelrole,
+			Role:    string(pguser.UserRole),
 			Balance: pguser.Balance,
 		}
 
@@ -362,16 +363,19 @@ func (pgr *PgRepo) Put(uid, key string, value model.DataEl, su bool) error {
 	}
 
 	//adjust type bool int
-	var isActiveBool = false
-	if value.Active == 1 {
-		isActiveBool = true
-	}
+	/*
+		var isActiveBool = false
+		if value.Active == 1 {
+			isActiveBool = true
+		}*/
+
+	//var isActiveBool = (value.Active == 1)
 
 	userdata := UserData{UID: value.UID,
 		URL:      value.URL,
 		ShortURL: value.Shorturl,
 		DateTime: value.Datetime,
-		IsActive: isActiveBool,
+		IsActive: value.Active == 1, // most sugarly way of transforming bw int to bool
 		Redirs:   value.Redirs,
 	}
 
@@ -680,19 +684,23 @@ func (pgr *PgRepo) GetUser(uid string) (model.User, error) {
 		return model.User{}, err
 	}
 
-	var modelrole string
-	switch pguser.UserRole {
-	case SUPERUSER:
-		modelrole = "SUPERUSER"
-	case USER:
-		modelrole = "USER"
-	case CREATOR:
-		modelrole = "CREATOR"
-	}
+	//var modelrole string
 
+	//modelrole := string(pguser.UserRole)
+
+	/*
+		switch pguser.UserRole {
+		case SUPERUSER:
+			modelrole = "SUPERUSER"
+		case USER:
+			modelrole = "USER"
+		case CREATOR:
+			modelrole = "CREATOR"
+		}
+	*/
 	apiuser := model.User{Name: pguser.Name,
 		Email:   pguser.Email,
-		Role:    modelrole,
+		Role:    string(pguser.UserRole),
 		Balance: pguser.Balance,
 	}
 

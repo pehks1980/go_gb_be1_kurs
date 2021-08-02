@@ -339,7 +339,7 @@ func postAuth(svc linkSvc) func(http.ResponseWriter, *http.Request) {
 		}
 
 		type PostJSONRq struct {
-			UID string `json:"uid"`
+			UID string `json:"name"`
 		}
 
 		var jsonPostRq = PostJSONRq{}

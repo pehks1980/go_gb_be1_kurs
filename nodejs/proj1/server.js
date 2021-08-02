@@ -118,17 +118,9 @@ function regAPI(callback, username, passwd, email){
     console.log('http api auth call=',url,'username=', options.json);
 
     request(url, options, function(error, response, body) {
-        // субфукция получает респонз асинхронно
-        // body - уже json
-        if (error) {
-            callback(error)
-        };
-
-        if (!error ){
-            callback(body)
-        };
+        callback(response,body)
     });
-};
+}
 
 function authAPI1(callback, username, password){
 
@@ -145,11 +137,7 @@ function authAPI1(callback, username, password){
     console.log('http api auth call=',url,'username', options.json);
 
     request(url, options, function(error, response, body) {
-        // субфукция получает респонз асинхронно
-        // body - уже json
-        //console.log(response,body)
         callback(response,body)
-
     });
 }
 //// delete user
@@ -196,7 +184,7 @@ function putUserAPI(callback,user,uid){
 }
 
 //// delete item
-function delAPI1(callback){
+function delLinkItemAPI(callback, shorturl){
 
     var options = {
       method: 'DELETE',
@@ -214,7 +202,7 @@ function delAPI1(callback){
 
     request(url, options, function(error, response, body) {
         // results gets to callback
-            callback(error,response,body)
+            callback(response,body)
     });
 }
 /// put item
@@ -250,10 +238,11 @@ function putAPI1(callback){
             callback(body)
         };
     });
-};
+}
+
 /// post item
-function postAPI1(callback){
-    var redirsint = parseFloat(putredirs);
+function postAPI1(callback, item){
+
     var options = {
       method: 'POST',
       headers: {
@@ -261,9 +250,9 @@ function postAPI1(callback){
         'Authorization': 'Bearer '+token,
       },
       json : {
-          'url': puturl,
-          'shorturl' : shorturl,
-          'redirs' : redirsint,
+          'url': item.puturl,
+          'shorturl' : item.shorturl,
+          'redirs' : parseFloat(item.putredirs),
           'active' : 1,
       },
     };
@@ -273,18 +262,12 @@ function postAPI1(callback){
     console.log('http api post (create) call=',url,'data=', options.json);
 
     request(url, options, function(error, response, body) {
-        // субфукция получает респонз асинхронно
-        if (error) {
-            callback(error)
-        };
-
-        if (!error ){
-            callback(body)
-        };
+        callback(response,body)
     });
-};
+}
+
 //// get list of items
-function getAPI1(callback) {
+function getItemsListAPI(callback) {
 
     var options = {
       method: 'GET',
@@ -300,20 +283,13 @@ function getAPI1(callback) {
     console.log('http call get api list=',url,'token=',token);
 
     request(url, options, function(error, response, body) {
-        // субфукция получает респонз асинхронно
-        if (error) {
-            callback(error)
-        };
-
-        if (!error ){
-            callback(body)
-        };
-
+        callback(response, body)
     });
 
-};
+}
+
 //// get link item
-function getAPI2(callback) {
+function getLinkItemAPI(callback, shorturl) {
     var options = {
         method: 'GET',
         headers: {
@@ -328,18 +304,9 @@ function getAPI2(callback) {
     console.log('http call get api link stat=', url);
 
     request(url, options, function (error, response, body) {
-        // субфукция получает респонз асинхронно
-        if (error) {
-            callback(error)
-        };
-
-        if (!error) {
-            callback(body)
-        };
-
+        callback(response,body)
     });
-
-};
+}
 
 function getShortOpenAPI(callback) {
     var options = {
@@ -356,19 +323,9 @@ function getShortOpenAPI(callback) {
     console.log('http call get api link open=', url);
 
     request(url, options, function (error, response, body) {
-        // субфукция получает респонз асинхронно
-        if (error) {
-            callback(error)
-        };
-
-        if (!error) {
-            callback(body)
-        };
-
+        callback(response,body)
     });
-
-};
-
+}
 
 //// get handlers
 //// index page
@@ -380,102 +337,124 @@ app.get('/', function(req, res) {
     ];
     var tagline = "No programming concept is complete without a cute animal mascot.";
 
-    if (token !== '') {
-        getUserAPI(
-            function (resp,body) {
-
-                if (resp.statusCode == 200) {
-                    user.name = body.name
-                    user.role = body.role
-                    user.balance = body.balance
-                    console.log('api getUserAPI res haha', body);
-
-                    console.log('api getUserAPI res haha', body);
-                    //res.redirect(nodejsurl+'/list');
-                    res.render('page/index', {
-                        mascots: mascots,
-                        tagline: tagline,
-                        user: user,
-                    });
-                }
-
-            });
-    } else {
+    if (token == '') {
         res.render('page/index', {
             mascots: mascots,
             tagline: tagline,
             user: user,
         });
+        return;
     }
+
+    getUserAPI(
+    function (resp, body) {
+
+            if (resp == undefined) {
+                res.render('page/index', {
+                    mascots: mascots,
+                    tagline: tagline,
+                    user: user,
+                });
+                return;
+            }
+
+            if (resp.statusCode != 200) {
+                res.render('page/index', {
+                    mascots: mascots,
+                    tagline: tagline,
+                    user: user,
+                });
+                return;
+            }
+
+            user.name = body.name
+            user.role = body.role
+            user.balance = body.balance
+            console.log('api getUserAPI res ', body);
+
+            res.render('page/index', {
+                mascots: mascots,
+                tagline: tagline,
+                user: user,
+            });
+
+        });
+
+
 });
 
 app.get('/admin', function(req, res) {
     console.log('api haha\n$$$$$$$$$$$$$$$$$$$$$$$$$$\n')
-    if (checktoken(token) == true) {
+    if (!checktoken(token)) {
+        // no token
+        res.render('page/unathorized', {user: null});
+        return;
+    }
 
-        console.log("user=",user)
+    console.log("user=",user)
 
-        getAllUsersAPI(function(resp, mc) {
+    getAllUsersAPI(
+        function(resp, mc) {
+
+            if ( resp == undefined ){
+                res.render('page/unathorized', {user: user});
+                return;
+            }
+
             console.log("mc=", mc);
 
             if (resp.statusCode !== 200) {
                 // error
                 res.render('page/unathorized', {user: user});
-            } else if (mc.data === null) {
-                // empty list
-                res.render('page/admin', {mc: mc.data,
-                    user: user,
-                    api: apiurl,
-                    nodejs: nodejsurl
-                });
-            } else {
-                // not empty list
-                // strip datetime to short format
-                /*
-                for (const x of mc.data) {
-                    let res = x.datetime.split(".");
-                    let res1 = res[0].split("T");
-                    x.datetime = res1[1] + ' ' + res1[0];
-                    console.log(x.datetime);
-                }
-
-                 */
-                res.render('page/admin', {mc: mc.data,
-                    user: user,
-                    api: apiurl,
-                    nodejs: nodejsurl
-                });
+                return;
             }
 
-        });
+            res.render('page/admin', {mc: mc.data,
+                user: user,
+                api: apiurl,
+                nodejs: nodejsurl
+            });
 
-    } else {
-        // no token
-        res.render('page/unathorized', {user: null});
-    };
+    });
+
 });
+
 //// list items page
 app.get('/list', function(req, res) {
 
-    if (checktoken(token) == true) {
+        if (!checktoken(token)) {
+            res.render('page/unathorized', {user: user});
+            return;
+        }
 
-        console.log("user=",user)
+        getItemsListAPI(
+            function(resp, mc) {
 
-        getAPI1(function(mc /* mc api response is passed using callback */) {
-            console.log("mc=", mc);
+                if (resp == undefined){
+                    res.render('page/unathorized', {user: user});
+                    return;
+                }
+
+                console.log("mc=", mc);
+
+                if (resp.statusCode !== 200) {
+                    // error
+                    res.render('page/unathorized', {user: user});
+                    return;
+                }
+
+                if (mc.data === null) {
+                    // empty list
+                    res.render('page/list', {
+                        mc: mc.data,
+                        user: user,
+                        api: apiurl,
+                        nodejs: nodejsurl
+                    });
+                    return;
+                }
 
 
-            if ('errors' in mc || 'Error' in mc) {
-                // error
-                res.render('page/unathorized', {user: user});
-            } else if (mc.data === null) {
-                // empty list
-                res.render('page/list', {mc: mc.data,
-                    user: user,
-                    api: apiurl,
-                    nodejs: nodejsurl
-                });
-            } else {
                 // not empty list
                 // strip datetime to short format
                 for (const x of mc.data) {
@@ -484,69 +463,64 @@ app.get('/list', function(req, res) {
                     x.datetime = res1[1] + ' ' + res1[0];
                     console.log(x.datetime);
                 }
+
                 res.render('page/list', {mc: mc.data,
                     user: user,
                     api: apiurl,
                     nodejs: nodejsurl
                 });
-            };
-
-        });
-
-    } else {
-        // no token
-        res.render('page/unathorized', {user: null});
-    };
+            });
 
 });
 
 app.get('/listupd', (req, res) => {
 
-    if (checktoken(token) == true) {
+    if (!checktoken(token)) {
+        res.render('page/unathorized', {user: user});
+        return;
+    }
 
-        getAPI1(function (mc /* mc api response is passed using callback */) {
+    getItemsListAPI(
+        function(resp, mc) {
+
+            if (resp == undefined){
+                res.render('page/unathorized', {user: user});
+                return;
+            }
+
             console.log("mc=", mc);
-            if ('errors'  in mc || 'Error' in mc) {
-                // no token
-                res.render('page/unathorized', {user: user,});
+
+            if (resp.statusCode !== 200) {
+                // error
+                res.render('page/unathorized', {user: user});
+                return;
             }
 
-            if (mc.data !== null) {
-                // not empty list mc.data
-                // strip datetime to short format
-                for (const x of mc.data) {
-                    let res = x.datetime.split(".");
-                    let res1 = res[0].split("T");
-                    x.datetime = res1[1] + ' ' + res1[0];
-                    console.log(x.datetime);
-                };
-
-                ejs.renderFile('views/part/table.ejs', {mc: mc.data, api: apiurl}, {}, function (err, str) {
-                    // str => Rendered HTML string
-                    //console.log(str,err)
-                    result = {"table": str};
-                    res.send(result);
-                });
-
-            } else {
+            if (mc.data === null) {
                 // empty list
-                //ejs.renderFile('views/part/table.ejs', {mc: mc.data, api: apiurl}, {}, function (err, str) {
-                    // str => Rendered HTML string
-                    //console.log(str,err)
-                    result = {"table": ""};
-                    res.send(result);
-                //});
-
+                result = {"table": ""};
+                res.send(result);
+                return;
             }
 
+            // not empty list
+            // strip datetime to short format
+            for (const x of mc.data) {
+                let res = x.datetime.split(".");
+                let res1 = res[0].split("T");
+                x.datetime = res1[1] + ' ' + res1[0];
+                console.log(x.datetime);
+            }
 
-
-
+            ejs.renderFile('views/part/table.ejs', {mc: mc.data, api: apiurl}, {}, function (err, str) {
+                // str => Rendered HTML string
+                //console.log(str,err)
+                result = {"table": str};
+                res.send(result);
+            });
 
         });
-    } else {
-        res.render('page/unathorized', {user: user,});
-    }
+
 });
 
 //// login form
@@ -559,6 +533,12 @@ app.get('/register', (req, res) => {
 });
 //// user delete item post button click
 app.post('/deluser', (req, res) => {
+
+    if (!checktoken(token)) {
+        res.render('page/unathorized', {user: user});
+        return;
+    }
+
     const click = {clickTime: new Date()};
     console.log(`delete user ${click.clickTime}`, req.body.uid);
     //store key link for api call
@@ -566,49 +546,69 @@ app.post('/deluser', (req, res) => {
 
     delUserAPI(function(resp,body /* api del call*/) {
         console.log('api user delete resp=', resp.statusCode, 'body=',body);
-        if (resp.statusCode !== 200 ){
-            console.log('click user was deleted / ');
-            //we cant redir to POST
-            //res.redirect(nodejsurl+'/');
-        } else {
-            //res.setHeader('Content-Type', 'application/json');
-            console.log('click redir /list');
-            ///res.redirect('/');
+
+        if (resp == undefined){
+            res.render('page/unathorized', {user: user});
+            return;
         }
 
+        if (resp.statusCode !== 200 ) {
+            res.render('page/unathorized', {user: user});
+            return;
+        }
+
+        res.redirect('/admin')
+
     },uid);
-    console.log('end del user post ')
+
 });
 //// pressed edit link button form (from list)
 app.get('/upduser', (req, res) => {
 
-    let uid = req.query.uid
-    console.log(`edit user ${uid}`);
-    if (checktoken(token) == true) {
-
-        getUserAPI(
-            function (resp,mc) {
-                if (resp.statusCode === 200) {
-                    console.log("mc=", mc);
-                    if (mc !== undefined) {
-                        // add uid to form to pass it back in post put user api
-                        mc.uid = uid
-                        res.render('page/useredit', {title: 'Edit User', user: user, instance: mc});
-                    } else {
-                        // no edit data - silently go to /
-                        res.redirect('/');
-                    }
-                }
-            },uid);
-    } else {
+    if (!checktoken(token)) {
         res.render('page/unathorized', {user: user});
+        return;
     }
 
+    let uid = req.query.uid
+    console.log(`edit user ${uid}`);
+
+    getUserAPI(
+        function (resp,mc) {
+
+            if (resp == undefined) {
+                res.render('page/unathorized', {user: user});
+                return;
+            }
+
+            if (resp.statusCode != 200) {
+                res.render('page/unathorized', {user: user});
+                return;
+            }
+
+            console.log("mc=", mc);
+            if (mc !== undefined) {
+                // add uid to form to pass it back in post put user api
+                mc.uid = uid
+                res.render('page/useredit', {title: 'Edit User', user: user, instance: mc});
+                return;
+            }
+
+            res.redirect('/');
+
+            },uid);
 });
 //// edit user post handler button click
 app.post('/upduser', (req, res) => {
+
+    if (!checktoken(token)) {
+        res.render('page/unathorized', {user: user});
+        return;
+    }
+
     const click = {clickTime: new Date()};
     console.log(`put ${click.clickTime}`, req.body);
+
     // get back params from form
     let user = {
         name:    req.body.name,
@@ -618,57 +618,94 @@ app.post('/upduser', (req, res) => {
     }
     let uid = req.body.uid
 
-    putUserAPI(function(resp,body /* update user*/) {
+    putUserAPI(
+        function(resp,body /* update user*/) {
+
+        if (resp == undefined) {
+            res.render('page/unathorized', {user: user});
+            return;
+        }
+
+        if (resp.statusCode != 200) {
+            res.render('page/unathorized', {user: user});
+            return;
+        }
+
         console.log('api res',resp.statusCode, body);
-        console.log('click put accepted');// go to list page after link update
+
         res.redirect(nodejsurl+'/admin');
     },user,uid);
 
 });
 
-
-
 //// pressed check link button form (from list)
 app.get('/check', (req, res) => {
 
+    if (!checktoken(token)) {
+        res.render('page/unathorized', {user: user});
+        return;
+    }
+
     shorturl = req.query.shorturl
-    console.log(`edit link ${shorturl}`);
-    if (checktoken(token) == true) {
-        getShortOpenAPI(function (mc) {
+    console.log(`check open link ${shorturl}`);
+
+    getShortOpenAPI(
+        function (resp, mc) {
+
+            if (resp == undefined) {
+                res.render('page/unathorized', {user: user});
+                return;
+            }
+
+            if (resp.statusCode != 200) {
+                res.render('page/unathorized', {user: user});
+                return;
+            }
             // get json from api put it as instance //called 'get shortstat/{link} api'
             console.log("mc=", mc);
-            if (mc.url !== undefined) {
-                res.redirect(mc.url)
-            } else {
-                // no edit data - silently go to /
+            // no edit data - silently go to /
+            if (mc.url == undefined) {
                 res.redirect('/');
             }
-        });
-    }else{
-        res.render('page/unathorized', {user: user});
-    }
+
+            res.redirect(mc.url);
+    });
 
 });
 
 //// pressed edit link button form (from list)
 app.get('/edit', (req, res) => {
 
-    shorturl = req.query.shorturl
-    console.log(`edit link ${shorturl}`);
-    if (checktoken(token) == true) {
-        getAPI2(function (mc) {
-            // get json from api put it as instance //called 'get shortstat/{link} api'
-            console.log("mc=", mc.data);
-            if (mc.data !== undefined) {
-                res.render('page/edit', {title: 'Edit Link', user: user, instance: mc.data[0]});
-            } else {
-                // no edit data - silently go to /
-                res.redirect('/');
-            }
-        });
-    }else{
+    if (!checktoken(token)) {
         res.render('page/unathorized', {user: user});
+        return;
     }
+
+    let shorturl = req.query.shorturl
+    console.log(`edit link ${shorturl}`);
+
+    getLinkItemAPI(function (resp,mc) {
+
+        if (resp == undefined) {
+            res.render('page/unathorized', {user: user});
+            return;
+        }
+
+        if (resp.statusCode != 200) {
+            res.render('page/unathorized', {user: user});
+            return;
+        }
+
+        // get json from api put it as instance //called 'get shortstat/{link} api'
+        console.log("mc=", mc.data);
+
+        if (mc.data == undefined) {
+            res.redirect('/');
+            return;
+        }
+
+        res.render('page/edit', {title: 'Edit Link', user: user, instance: mc.data[0]});
+    }, shorturl);
 
 });
 //// add new link form
@@ -679,20 +716,36 @@ app.get('/add', (req, res) => {
 //// POST handlers
 //// add new link post form
 app.post('/add', (req, res) => {
+
+    if (!checktoken(token)) {
+        res.render('page/unathorized', {user: user});
+        return;
+    }
+
     const click = {clickTime: new Date()};
     console.log(`create ${click.clickTime}`, req.body);
     //must be unique link = text + random part
-    shorturl = req.body.shorturl;
     let r = Math.random().toString(36).substring(7);
-    //add unique part
-    shorturl = shorturl + r;
-    // the rest params
-    puturl = req.body.url;
-    putredirs = req.body.redirs;
+    let item = {
+        shorturl: req.body.shorturl + r,
+        puturl: req.body.url,
+        putredirs : req.body.redirs
+    }
 
     //console.log(shorturl,puturl,putredirs)
-     postAPI1(function(res1 /* post to api new link*/) {
-         console.log('api res added=',res1.statusCode);
+     postAPI1(function(resp,body )/* post to api new link*/ {
+
+         if (resp == undefined){
+             res.render('page/unathorized', {user: user});
+             return;
+         }
+
+         if (resp.statusCode !== 201 ) {
+             res.render('page/unathorized', {user: user});
+             return;
+         }
+
+         console.log('api res added=',body, 'status', resp.statusCode);
          // after add go to list page
          getUserAPI(
              function (resp,body) {
@@ -701,16 +754,21 @@ app.post('/add', (req, res) => {
                  user.balance = body.balance
                  console.log('api getUserAPI res',resp.statusCode);
                  console.log('click add accepted');
-                 return res.redirect(nodejsurl+'/list');
+                 res.redirect('/list');
              });
 
-     });
-
+     }, item);
 
 });
 
 //// edit link post handler button click
 app.post('/edit', (req, res) => {
+
+    if (!checktoken(token)) {
+        res.render('page/unathorized', {user: user});
+        return;
+    }
+
     const click = {clickTime: new Date()};
     console.log(`put ${click.clickTime}`, req.body);
     // get back params from form
@@ -721,9 +779,8 @@ app.post('/edit', (req, res) => {
     putAPI1(function(res1 /* update link*/) {
          console.log('api res',res1);
          console.log('click put accepted');// go to list page after link update
-         res.redirect(nodejsurl+'/list');
-     });
-
+         res.redirect('/list');
+    });
 
 });
 
@@ -733,42 +790,45 @@ app.post('/login', (req, res) => {
     let username = req.body.username;
     let password = req.body.password;
     console.log(`auth ${req.body.username}`)
+
     authAPI1(function(resp,body) {
-        console.log('api auth res',resp.statusCode, 'body=',body);
-        if (resp.statusCode === 200){
-            console.log('api auth res', body.accessToken);
-            // store access jwt token
-            if (body.accessToken !== null) {
-                // if api is not responding we get undefined res!!!
-                // so we store token only if api is ok and we get authorization token
-                token = body.accessToken;
-                tokenPayload = jwtdecode(token)
-                let uid = tokenPayload.uid
-                getUserAPI(
-                    function (res1) {
-                        user.name = res1.name
-                        user.role = res1.role
-                        user.balance = res1.balance
-                        console.log('api getUserAPI res', res1);
-                        console.log('redirect to ', nodejsurl + '/', 'user=', user);
-                        res.redirect(nodejsurl + '/');
-                    });
 
-
-                /*
-                getAllUsersAPI(
-                    function (res) {
-                        console.log('api getUsersAPI res',res);
-
-                    });
-
-                 */
-            }
-        }
-        else {
-            //not sucessful
+        //console.log('api auth res',resp, 'body=',body);
+        if ( resp === undefined){
+            console.log('please check if api is running at all!!')
             res.render('page/unathorized', {user: user});
+            return;
         }
+
+        if (resp.statusCode !== 200) {
+            //not successful
+            res.render('page/unathorized', {user: user});
+            return;
+        }
+
+        if (body.accessToken == null) {
+            res.render('page/unathorized', {user: user});
+            return;
+        }
+
+        // store access jwt token
+        // if api is not responding we get undefined res!!!
+        // so we store token only if api is ok and we get authorization token
+        token = body.accessToken;
+        tokenPayload = jwtdecode(token)
+        let uid = tokenPayload.uid
+        console.log('api auth res', body.accessToken,'uid=',uid);
+
+        getUserAPI(
+            function (res1) {
+                user.name = res1.name
+                user.role = res1.role
+                user.balance = res1.balance
+                //console.log('api getUserAPI res', res1);
+                console.log('redirect to ', nodejsurl + '/', 'user=', user);
+                res.redirect(nodejsurl + '/');
+            });
+
     }, username, password);
 
 });
@@ -780,6 +840,7 @@ app.post('/register', (req, res) => {
     let password = req.body.password;
     ///
     console.log(`auth ${req.body.username}`)
+
     regAPI(function(res1) {
         console.log('api register res',res1);
         //redir to /
@@ -789,26 +850,32 @@ app.post('/register', (req, res) => {
 });
 //// delete item post button click
 app.post('/delete', (req, res) => {
+
+    if (!checktoken(token)) {
+        res.render('page/unathorized', {user: user});
+        return;
+    }
+
     const click = {clickTime: new Date()};
     console.log(`delete ${click.clickTime}`, req.body.shorturl);
     //store key link for api call
-    shorturl = req.body.shorturl;
+    let shorturl = req.body.shorturl;
 
-    delAPI1(function(err,res1,body /* api del call*/) {
-        console.log('api delete err=',err, 'res1=', res1.statusCode, 'body=',body);
-        console.log('click del accepted');
-        if (res1.statusCode !== 200 ){
-            console.log('click redir / ');
-            //we cant redir to POST
-            //res.redirect(nodejsurl+'/');
-        } else {
-            res.setHeader('Content-Type', 'application/json');
-            console.log('click redir /list');
-            ///res.redirect('/');
+    delLinkItemAPI(function (resp,body) /* api del call*/{
+
+        if (resp == undefined) {
+            res.render('page/unathorized', {user: user});
+            return;
         }
 
-    });
+        if (resp.statusCode != 200) {
+            res.render('page/unathorized', {user: user});
+            return;
+        }
 
+        res.redirect('/list')
+
+    },shorturl);
 
 });
 

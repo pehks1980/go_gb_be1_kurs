@@ -35,7 +35,7 @@ func TestHandler(t *testing.T) {
 
 	// auth test /////////////////////////////////////////////////////////////////////////////////////
 	// setup test request
-	var jsonStr = []byte(`{"uid":"any user"}`)
+	var jsonStr = []byte(`{"name":"any user"}`)
 	req, err := http.NewRequest("POST", "/user/auth", bytes.NewBuffer(jsonStr))
 	if err != nil {
 		t.Fatal(err)
@@ -53,6 +53,7 @@ func TestHandler(t *testing.T) {
 	if status := rr.Code; status != http.StatusOK {
 		t.Errorf("handler returned wrong status code: got %v want %v",
 			status, http.StatusOK)
+		return
 	}
 	//  работаем с телом ответа
 	p, errR := ioutil.ReadAll(rr.Body)
@@ -146,9 +147,9 @@ func TestHandler(t *testing.T) {
 	// execute server with test request
 	handler.ServeHTTP(rr, req)
 	// Проверяем статус-код ответа
-	if status := rr.Code; status != http.StatusSeeOther {
+	if status := rr.Code; status != http.StatusFound {
 		t.Errorf("handler returned wrong status code: got %v want %v",
-			status, http.StatusSeeOther)
+			status, http.StatusFound)
 	}
 	//  работаем с телом ответа
 	p, errR = ioutil.ReadAll(rr.Body)

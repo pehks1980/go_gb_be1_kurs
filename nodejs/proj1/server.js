@@ -1,16 +1,11 @@
-
 //// local data 'storage'
 var token = '';
 var tokenPayload = ''
-var shorturl = '';
-var puturl = '';
-var putredirs = '';
 var user = {
         name : '',
         role : '',
         balance: ''
     };
-
 // select api address
 const apiurl = 'http://127.0.0.1:8000'; //local
 //const apiurl = 'https://web-link19801.herokuapp.com'; // heroku
@@ -19,7 +14,6 @@ const nodejsurl = 'http://127.0.0.1:8090';
 // must be the same as nodejsurl -):
 const srvIP = '127.0.0.1';
 const srvPort = '8090';
-
 function jwtdecode(token) {
     let decoded = jwt_decode(token);
     console.log('token payload= ',decoded);
@@ -38,7 +32,6 @@ function checktoken(token){
 
     return false;
 };
-
 //// express setup
 //// load the things we need
 const request = require('request');
@@ -55,7 +48,6 @@ app.use(express.json());
 const bodyParser = require('body-parser');
 const jwt_decode = require('jwt-decode');
 app.use(bodyParser.urlencoded({ extended: true }));
-
 //// api cb funcs
 //// get token for uid
 function getUserAPI(callback, uid){
@@ -182,7 +174,6 @@ function putUserAPI(callback,user,uid){
         callback(response,body)
     });
 }
-
 //// delete item
 function delLinkItemAPI(callback, shorturl){
 
@@ -239,7 +230,6 @@ function putAPI1(callback){
         };
     });
 }
-
 /// post item
 function postAPI1(callback, item){
 
@@ -265,7 +255,6 @@ function postAPI1(callback, item){
         callback(response,body)
     });
 }
-
 //// get list of items
 function getItemsListAPI(callback) {
 
@@ -287,7 +276,6 @@ function getItemsListAPI(callback) {
     });
 
 }
-
 //// get link item
 function getLinkItemAPI(callback, shorturl) {
     var options = {
@@ -326,7 +314,6 @@ function getShortOpenAPI(callback) {
         callback(response,body)
     });
 }
-
 //// get handlers
 //// index page
 app.get('/', function(req, res) {
@@ -382,7 +369,7 @@ app.get('/', function(req, res) {
 
 
 });
-
+//// admin page
 app.get('/admin', function(req, res) {
     console.log('api haha\n$$$$$$$$$$$$$$$$$$$$$$$$$$\n')
     if (!checktoken(token)) {
@@ -418,7 +405,6 @@ app.get('/admin', function(req, res) {
     });
 
 });
-
 //// list items page
 app.get('/list', function(req, res) {
 
@@ -472,7 +458,7 @@ app.get('/list', function(req, res) {
             });
 
 });
-
+//// list update
 app.get('/listupd', (req, res) => {
 
     if (!checktoken(token)) {
@@ -522,7 +508,6 @@ app.get('/listupd', (req, res) => {
         });
 
 });
-
 //// login form
 app.get('/login', (req, res) => {
     res.render('page/login', {title : 'login to API', user: user,});
@@ -637,7 +622,6 @@ app.post('/upduser', (req, res) => {
     },user,uid);
 
 });
-
 //// pressed check link button form (from list)
 app.get('/check', (req, res) => {
 
@@ -672,7 +656,6 @@ app.get('/check', (req, res) => {
     });
 
 });
-
 //// pressed edit link button form (from list)
 app.get('/edit', (req, res) => {
 
@@ -712,7 +695,6 @@ app.get('/edit', (req, res) => {
 app.get('/add', (req, res) => {
     res.render('page/add', {title : 'add new link', user: user,});
 });
-
 //// POST handlers
 //// add new link post form
 app.post('/add', (req, res) => {
@@ -760,7 +742,6 @@ app.post('/add', (req, res) => {
      }, item);
 
 });
-
 //// edit link post handler button click
 app.post('/edit', (req, res) => {
 
@@ -783,7 +764,6 @@ app.post('/edit', (req, res) => {
     });
 
 });
-
 //// login form post reply
 app.post('/login', (req, res) => {
     // Login Code Here
@@ -878,7 +858,6 @@ app.post('/delete', (req, res) => {
     },shorturl);
 
 });
-
 //// start node server.js
 app.listen(srvPort,srvIP);
 console.log('server node.js started http://'+ srvIP +':' + srvPort, ' (API URL:', apiurl, ')');

@@ -421,7 +421,7 @@ app.get('/list', function(req, res) {
                     return;
                 }
 
-                console.log("mc=", mc);
+                //console.log("mc=", mc);
 
                 if (resp.statusCode !== 200) {
                     // error
@@ -447,7 +447,7 @@ app.get('/list', function(req, res) {
                     let res = x.datetime.split(".");
                     let res1 = res[0].split("T");
                     x.datetime = res1[1] + ' ' + res1[0];
-                    console.log(x.datetime);
+                    //console.log(x.datetime);
                 }
 
                 res.render('page/list', {mc: mc.data,
@@ -474,7 +474,7 @@ app.get('/listupd', (req, res) => {
                 return;
             }
 
-            console.log("mc=", mc);
+            //console.log("mc=", mc);
 
             if (resp.statusCode !== 200) {
                 // error
@@ -669,12 +669,12 @@ app.get('/edit', (req, res) => {
 
     getLinkItemAPI(function (resp,mc) {
 
-        if (resp == undefined) {
+        if (resp === undefined) {
             res.render('page/unathorized', {user: user});
             return;
         }
 
-        if (resp.statusCode != 200) {
+        if (resp.statusCode !== 200) {
             res.render('page/unathorized', {user: user});
             return;
         }
@@ -849,6 +849,7 @@ app.post('/delete', (req, res) => {
         }
 
         if (resp.statusCode != 200) {
+            console.log('statusCode ', resp.statusCode);
             res.render('page/unathorized', {user: user});
             return;
         }

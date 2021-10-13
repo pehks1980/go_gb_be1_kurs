@@ -23,13 +23,13 @@ func main() {
 	// настройка порта, настроек хранилища, таймаут при закрытии сервиса
 	portdef := flag.String("port", "8000", "Port")
 
-	storageType := flag.String("storage type", "pg", "data storage type: 'file' or 'pg'")
+	storageType := flag.String("storage type", "file", "data storage type: 'file' or 'pg'")
 
-	storageName := flag.String("storage name", "postgres://postuser:postpassword@192.168.1.204:5432/a4",
-		"pg: 'postgres://dbuser:dbpasswd@ip_address:port/dbname'  file: 'storage.json'")
-
-	//storageName := flag.String("storage name", "storage.json",
+	//storageName := flag.String("storage name", "postgres://postuser:postpassword@192.168.1.204:5432/a4",
 	//	"pg: 'postgres://dbuser:dbpasswd@ip_address:port/dbname'  file: 'storage.json'")
+
+	storageName := flag.String("storage name", "storage.json",
+		"pg: 'postgres://dbuser:dbpasswd@ip_address:port/dbname'  file: 'storage.json'")
 
 	shutdownTimeout := flag.Int64("shutdown_timeout", 3, "shutdown timeout")
 	/*

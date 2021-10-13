@@ -428,6 +428,16 @@ func delFromLink(linkSvc linkSvc) http.HandlerFunc {
 			//fmt.Println(props["uid"])
 			UID := fmt.Sprintf("%v", props["uid"])
 
+			user, err2 := linkSvc.GetUser(UID)
+			if err2 != nil {
+				log.Printf("Coild not get user profile, err: %v\n", err2)
+			}
+			// per rule: users cant delete anything in storage
+			if user.Role == "USER" {
+				ResponseAPIError(w, 401, http.StatusUnauthorized)
+				return
+			}
+
 			suid, _ := linkSvc.FindSuperUser()
 			if suid == UID {
 				// superuser deletes other user record here
@@ -608,15 +618,58 @@ func postToLink(linkSvc linkSvc) http.HandlerFunc {
 func getFromLink(linkSvc linkSvc) http.HandlerFunc {
 	return func(w http.ResponseWriter, request *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		var datajson = model.Data{}
 
-		// logic for file - get links of the user
+		checkif := linkSvc.WhoAmI()
+
+		if checkif == 1 {
+			//logic for pg if user role = user list all links in database
+			props, _ := request.Context().Value(ctxKey{}).(jwt.MapClaims)
+			UID := fmt.Sprintf("%v", props["uid"])
+
+			user, err1 := linkSvc.GetUser(UID)
+			if err1 != nil {
+				log.Printf("could not get user profie")
+				// todo insert reply with error
+				return
+			}
+			if user.Role == "USER" || user.Role == "SUPERUSER" {
+				//
+				sqlData, err3 := linkSvc.GetAll()
+				if err3 != nil {
+					//to do insert reply with error
+					return
+				}
+				//check if ROLE == USER dont show fields: URL
+				if user.Role == "USER" {
+					// The _, item := range  xxx - copies the values from the slice xxx to a local variable item;
+					// updating item will not affect the slice.
+					// this will update slice
+					for i := range sqlData.Data {
+						sqlData.Data[i].URL = "***"
+						sqlData.Data[i].UID = "*"
+					}
+				}
+				err2 := json.NewEncoder(w).Encode(sqlData)
+				if err2 != nil {
+					//to do insert reply with error
+					return
+				}
+				//finish http reply
+				return
+			}
+
+		}
+
+		var datajson = model.Data{}
+		// old ver get links of the user , as well as if the user role = creator (in case db ver)
+		// it also gets its links
 		storageKeys, UID, err := GetUserStorageKeys(request, linkSvc)
 		if err != nil {
 			ResponseAPIError(w, 10, http.StatusBadRequest)
 			return
 		}
 
+		// fill up array with data for json output
 		for _, storageKey := range storageKeys {
 			getElement, errfor := linkSvc.Get(UID, storageKey, false)
 			if errfor != nil {
@@ -632,34 +685,6 @@ func getFromLink(linkSvc linkSvc) http.HandlerFunc {
 		sort.Slice(datajson.Data, func(i, j int) bool {
 			return datajson.Data[i].Datetime.Before(datajson.Data[j].Datetime)
 		})
-
-		checkif := linkSvc.WhoAmI()
-
-		if checkif == 1 {
-			//logic for pg if user role = user list all links in database
-
-			user, err1 := linkSvc.GetUser(UID)
-			if err1 != nil {
-				log.Printf("could not get user profie")
-				// todo insert reply with error
-				return
-			}
-			if user.Role == "USER" || user.Role == "SUPERUSER" {
-				//
-				sqlData, err3 := linkSvc.GetAll()
-				if err3 != nil {
-					//to do insert reply with error
-					return
-				}
-				err2 := json.NewEncoder(w).Encode(sqlData)
-				if err2 != nil {
-					//to do insert reply with error
-					return
-				}
-				//send http reply
-				return
-			}
-		}
 
 		err = json.NewEncoder(w).Encode(datajson)
 		if err != nil {

@@ -31,7 +31,13 @@ func TestHandler(t *testing.T) {
 	repoif = new(repository.FileRepo)
 	// вызов метода интерфейса - инициализация конфигa
 	linkSVC := repoif.New("test.json")
-	handler := endpoint.RegisterPublicHTTP(linkSVC)
+
+	var promif, prometh endpoint.PromIf
+	// подстановка в интерфейс соотвествующего хранилища
+	promif = new(endpoint.Prom)
+	prometh = promif.New()
+
+	handler := endpoint.RegisterPublicHTTP(linkSVC, prometh)
 
 	// auth test /////////////////////////////////////////////////////////////////////////////////////
 	// setup test request

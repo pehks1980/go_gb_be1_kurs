@@ -17,19 +17,24 @@ import (
 	// репозиторий (хранилище) 1 файло 2 память 3 pg sql(db)
 )
 
+//global var
+var (
+//Prometh endpoint.PromIf
+)
+
 // главная петля
 func main() {
 	log.Print("Starting the app")
 	// настройка порта, настроек хранилища, таймаут при закрытии сервиса
 	portdef := flag.String("port", "8000", "Port")
 
-	storageType := flag.String("storage type", "file", "data storage type: 'file' or 'pg'")
+	storageType := flag.String("storage type", "pg", "data storage type: 'file' or 'pg'")
 
-	//storageName := flag.String("storage name", "postgres://postuser:postpassword@192.168.1.204:5432/a4",
-	//	"pg: 'postgres://dbuser:dbpasswd@ip_address:port/dbname'  file: 'storage.json'")
-
-	storageName := flag.String("storage name", "storage.json",
+	storageName := flag.String("storage name", "postgres://postuser:postpassword@192.168.1.204:5432/a4",
 		"pg: 'postgres://dbuser:dbpasswd@ip_address:port/dbname'  file: 'storage.json'")
+
+	//storageName := flag.String("storage name", "storage.json",
+	//	"pg: 'postgres://dbuser:dbpasswd@ip_address:port/dbname'  file: 'storage.json'")
 
 	shutdownTimeout := flag.Int64("shutdown_timeout", 3, "shutdown timeout")
 	/*
@@ -73,9 +78,23 @@ func main() {
 
 	// создание сервера с таким портом, и обработчиком интерфейс которого связывается а файлохранилищем
 	// т.к. инициализация происходит (RegisterPublicHTTP)- в интерфейс endpoint подается структура из file.go
+
+	// Prometheus init //////////////////////////////////
+	// создаем структуру для прометиуса включающую 2 обьекта cчетчика
+
+	//Prometh := endpoint.Prom{}
+	// инициализуем эти структуры и регистрим их в прометиусе
+	//if err := Prometh.Init(); err != nil {
+	//	log.Fatal(err)
+	//}
+	var promif, Prometh endpoint.PromIf
+	// подстановка в интерфейс соотвествующего хранилища
+	promif = new(endpoint.Prom)
+	Prometh = promif.New()
+
 	serv := http.Server{
 		Addr:    net.JoinHostPort("", port),
-		Handler: endpoint.RegisterPublicHTTP(linkSVC),
+		Handler: endpoint.RegisterPublicHTTP(linkSVC, Prometh),
 	}
 	// запуск сервера
 	go func() {

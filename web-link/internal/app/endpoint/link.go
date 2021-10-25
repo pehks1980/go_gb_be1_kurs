@@ -15,6 +15,8 @@ import (
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
+
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 //  linkSvc - интерфейс сервиса со стороны http
@@ -39,14 +41,13 @@ type linkSvc interface {
 }
 
 // RegisterPublicHTTP - регистрация роутинга путей типа urls.py для обработки сервером
-func RegisterPublicHTTP(linkSvc linkSvc) *mux.Router {
-	// mux golrilla почему он? не знаю, - прикольное название, простота работы..
+func RegisterPublicHTTP(linkSvc linkSvc, linkProm PromIf) *mux.Router {
 	r := mux.NewRouter()
 	// JWT authorization
-	r.HandleFunc("/user/auth", postAuth(linkSvc)).Methods(http.MethodPost)
+	r.HandleFunc("/user/auth", postAuth(linkSvc, linkProm)).Methods(http.MethodPost)
 	r.HandleFunc("/token/refresh", postTokenRefresh(linkSvc)).Methods(http.MethodPost)
 	r.HandleFunc("/user/register", postRegister(linkSvc)).Methods(http.MethodPost)
-
+	// user api (works only with pg interface)
 	r.HandleFunc("/users/all", getAllUserData(linkSvc)).Methods(http.MethodGet)
 	r.HandleFunc("/user/", getUserData(linkSvc)).Methods(http.MethodGet)
 	r.HandleFunc("/user/{uid}", getUserData(linkSvc)).Methods(http.MethodGet)
@@ -54,7 +55,7 @@ func RegisterPublicHTTP(linkSvc linkSvc) *mux.Router {
 	r.HandleFunc("/user/{uid}", putUserData(linkSvc)).Methods(http.MethodPut)
 	r.HandleFunc("/user/{uid}", delUserData(linkSvc)).Methods(http.MethodDelete)
 
-	// Main function
+	// Main function shortlinks api
 	r.HandleFunc("/shortopen/{shortlink}", getShortOpen(linkSvc)).Methods(http.MethodGet)
 	r.HandleFunc("/shortstat/{shortlink}", getShortStat(linkSvc)).Methods(http.MethodGet)
 	// Links crud
@@ -62,9 +63,16 @@ func RegisterPublicHTTP(linkSvc linkSvc) *mux.Router {
 	r.HandleFunc("/links/all", getFromLink(linkSvc)).Methods(http.MethodGet)
 	r.HandleFunc("/links/{shortlink}", putToLink(linkSvc)).Methods(http.MethodPut)
 	r.HandleFunc("/links/{shortlink}", delFromLink(linkSvc)).Methods(http.MethodDelete)
+
+	// Prometheus metrics url path
+	r.Handle("/metrics", promhttp.Handler())
+
 	// MiddleWare first goes JWT second goes Logging
 	r.Use(JWTCheckMiddleware)
+	// Logging MiddleWare
 	r.Use(LoggingMiddleware)
+	// Prometheus Middleware
+	r.Use(PromMiddlewareFunc(linkProm))
 	return r
 }
 
@@ -284,8 +292,14 @@ func postTokenRefresh(svc linkSvc) func(http.ResponseWriter, *http.Request) {
 }
 
 // postAuth - authenticate and give authorization token
-func postAuth(svc linkSvc) func(http.ResponseWriter, *http.Request) {
+func postAuth(svc linkSvc, prom PromIf) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, request *http.Request) {
+
+		defer func() {
+			// update Prom objects AuthCounter tries
+			prom.UpdateCtr()
+		}()
+
 		//json header check
 		contentType := request.Header.Get("Content-Type")
 		if contentType != "application/json" {

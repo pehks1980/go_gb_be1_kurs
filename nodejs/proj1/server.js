@@ -429,8 +429,9 @@ app.get('/list', function(req, res) {
                     return;
                 }
 
-                if (mc.data === null) {
+                if ( mc.data === undefined || mc.data === null) {
                     // empty list
+                    mc.data = null;
                     res.render('page/list', {
                         mc: mc.data,
                         user: user,

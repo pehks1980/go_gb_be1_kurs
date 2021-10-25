@@ -17,11 +17,6 @@ import (
 	// репозиторий (хранилище) 1 файло 2 память 3 pg sql(db)
 )
 
-//global var
-var (
-//Prometh endpoint.PromIf
-)
-
 // главная петля
 func main() {
 	log.Print("Starting the app")

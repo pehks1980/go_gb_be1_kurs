@@ -75,15 +75,9 @@ func main() {
 	// т.к. инициализация происходит (RegisterPublicHTTP)- в интерфейс endpoint подается структура из file.go
 
 	// Prometheus init //////////////////////////////////
-	// создаем структуру для прометиуса включающую 2 обьекта cчетчика
-
-	//Prometh := endpoint.Prom{}
-	// инициализуем эти структуры и регистрим их в прометиусе
-	//if err := Prometh.Init(); err != nil {
-	//	log.Fatal(err)
-	//}
+	// создаем структуру-интерфейс для прометиуса, включающую 2 обьекта cчетчик и гистограммка
 	var promif, Prometh endpoint.PromIf
-	// подстановка в интерфейс соотвествующего хранилища
+
 	promif = new(endpoint.Prom)
 	Prometh = promif.New()
 

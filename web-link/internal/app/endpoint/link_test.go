@@ -2,14 +2,19 @@ package endpoint_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/uber/jaeger-client-go/config"
+	jaegerlog "github.com/uber/jaeger-client-go/log"
 
 	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/app/endpoint"
 	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/pkg/repository"
@@ -29,15 +34,41 @@ func TestHandler(t *testing.T) {
 	var repoif repository.RepoIf
 	// подстановка в интерфейс соотвествующего хранилища
 	repoif = new(repository.FileRepo)
-	// вызов метода интерфейса - инициализация конфигa
-	linkSVC := repoif.New("test.json")
+
+	// create empty context for this app
+	ctx := context.Background()
 
 	var promif, prometh endpoint.PromIf
 	// подстановка в интерфейс соотвествующего хранилища
 	promif = new(endpoint.Prom)
 	prometh = promif.New()
 
-	handler := endpoint.RegisterPublicHTTP(linkSVC, prometh)
+	// init tracer
+	jLogger := jaegerlog.StdLogger
+	// tracer config init
+	cfg := &config.Configuration{
+		ServiceName: "weblink",
+		Sampler: &config.SamplerConfig{
+			Type:  "const",
+			Param: 1,
+		},
+		Reporter: &config.ReporterConfig{
+			LocalAgentHostPort: "127.0.0.1:6831",
+			LogSpans:           true,
+		},
+	}
+	jTracer, jCloser, err := cfg.NewTracer(config.Logger(jLogger))
+
+	if err != nil {
+		log.Fatalf("cannot init Jaeger err: %v", err)
+	}
+	// close the closer
+	defer jCloser.Close()
+
+	// вызов метода интерфейса - инициализация конфигa
+	linkSVC := repoif.New(ctx, "test.json", jTracer)
+
+	handler := endpoint.RegisterPublicHTTP(linkSVC, prometh, jTracer)
 
 	// auth test /////////////////////////////////////////////////////////////////////////////////////
 	// setup test request

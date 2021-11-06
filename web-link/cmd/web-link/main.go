@@ -14,6 +14,12 @@ import (
 	_ "github.com/pehks1980/go_gb_be1_kurs/web-link/internal/app/config"
 	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/app/endpoint"
 	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/pkg/repository"
+
+	_ "github.com/opentracing/opentracing-go"
+	"github.com/uber/jaeger-client-go/config"
+	_ "go.uber.org/zap"
+
+	jaegerlog "github.com/uber/jaeger-client-go/log"
 	// репозиторий (хранилище) 1 файло 2 память 3 pg sql(db)
 )
 
@@ -56,15 +62,39 @@ func main() {
 	// инициализация файлового хранилища ук на структуру repo
 	var repoif, linkSVC repository.RepoIf
 
+	// init tracer
+	jLogger := jaegerlog.StdLogger
+	// tracer config init
+	cfg := &config.Configuration{
+		ServiceName: "weblink",
+		Sampler: &config.SamplerConfig{
+			Type:  "const",
+			Param: 1,
+		},
+		Reporter: &config.ReporterConfig{
+			LocalAgentHostPort: "127.0.0.1:6831",
+			LogSpans:           true,
+		},
+	}
+	jTracer, jCloser, err := cfg.NewTracer(config.Logger(jLogger))
+
+	if err != nil {
+		log.Fatalf("cannot init Jaeger err: %v", err)
+	}
+	// close the closer
+	defer jCloser.Close()
+	// create empty context for this app
+	ctx := context.Background()
 	// подстановка в интерфейс соотвествующего хранилища
 	if *storageType == "file" {
 		repoif = new(repository.FileRepo)
-		linkSVC = repoif.New(*storageName)
+		linkSVC = repoif.New(*storageName, jTracer, ctx)
 	}
 	if *storageType == "pg" {
 		repoif = new(repository.PgRepo)
-		linkSVC = repoif.New(*storageName)
+		linkSVC = repoif.New(*storageName, jTracer, ctx)
 		defer linkSVC.CloseConn()
+
 	}
 
 	//repoif = new(repository.MemRepo)
@@ -83,7 +113,7 @@ func main() {
 
 	serv := http.Server{
 		Addr:    net.JoinHostPort("", port),
-		Handler: endpoint.RegisterPublicHTTP(linkSVC, Prometh),
+		Handler: endpoint.RegisterPublicHTTP(linkSVC, Prometh, jTracer),
 	}
 	// запуск сервера
 	go func() {

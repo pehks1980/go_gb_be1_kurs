@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -9,23 +10,25 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/opentracing/opentracing-go"
+
 	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/pkg/model"
 )
 
 // RepoIf - main methods for a storage (a file repo) same as linkSVC
 type RepoIf interface {
-	New(filename string) RepoIf
+	New(ctx context.Context, filename string, tracer opentracing.Tracer) RepoIf
 	Get(uid, key string, su bool) (model.DataEl, error)
 	Put(uid, key string, value model.DataEl, su bool) error
 	Del(uid, key string, su bool) error
-	List(uid string) ([]string, error)
+	List(ctx context.Context, uid string) ([]string, error)
 	GetUn(shortlink string) (string, error)
 	CloseConn()
 	PutUser(value model.User) (string, error)
 	DelUser(uid string) error
 	GetUser(uid string) (model.User, error)
 	WhoAmI() uint64
-	PayUser(uidA, uidB, amount string) error
+	PayUser(ctx context.Context, uidA, uidB, amount string) error
 	FindSuperUser() (string, error)
 	GetAll() (model.Data, error)
 	AuthUser(user model.User) (string, error)
@@ -56,7 +59,7 @@ func (fr *FileRepo) WhoAmI() uint64 {
 }
 
 // New - инициализация файлостораджа
-func (fr *FileRepo) New(filename string) RepoIf {
+func (fr *FileRepo) New(ctx context.Context, filename string, tracer opentracing.Tracer) RepoIf {
 	// init file repo
 	fileRepo := &FileRepo{
 		fileName: filename,
@@ -237,7 +240,7 @@ func (fr *FileRepo) Del(uid, key string, su bool) error {
 }
 
 // List - list all keys for this user uid
-func (fr *FileRepo) List(uid string) ([]string, error) {
+func (fr *FileRepo) List(ctx context.Context, uid string) ([]string, error) {
 	fr.RWMutex.RLock()
 	defer fr.RWMutex.RUnlock()
 	// get data needed
@@ -257,7 +260,7 @@ func (fr *FileRepo) GetAll() (model.Data, error) {
 }
 
 // PayUser заглушки
-func (fr *FileRepo) PayUser(uidA, uidB, amount string) error {
+func (fr *FileRepo) PayUser(ctx context.Context, uidA, uidB, amount string) error {
 	return nil
 }
 

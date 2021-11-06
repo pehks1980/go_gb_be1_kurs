@@ -88,11 +88,11 @@ func main() {
 	// подстановка в интерфейс соотвествующего хранилища
 	if *storageType == "file" {
 		repoif = new(repository.FileRepo)
-		linkSVC = repoif.New(*storageName, jTracer, ctx)
+		linkSVC = repoif.New(ctx, *storageName, jTracer)
 	}
 	if *storageType == "pg" {
 		repoif = new(repository.PgRepo)
-		linkSVC = repoif.New(*storageName, jTracer, ctx)
+		linkSVC = repoif.New(ctx, *storageName, jTracer)
 		defer linkSVC.CloseConn()
 
 	}

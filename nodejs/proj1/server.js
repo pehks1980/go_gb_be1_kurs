@@ -862,12 +862,13 @@ app.post('/delete', (req, res) => {
 });
 
 // запускаем apm agent
-/*
+
 var apm = require('elastic-apm-node').start({
     serviceName: 'weblinknodeserver',
-    serverUrl: 'http://127.0.0.1:8200'
+    serverUrl: 'http://localhost:8200',
+    debug: 'true',
 })
-*/
+
 
 //// start node server.js
 app.listen(srvPort,srvIP);

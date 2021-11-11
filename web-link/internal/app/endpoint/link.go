@@ -27,11 +27,11 @@ import (
 //  list - list all links for uid user
 //  GetUn - open link for redir and add 1 to redir count
 type linkSvc interface {
-	Get(uid, key string, su bool) (model.DataEl, error)
-	Put(uid, key string, value model.DataEl, su bool) error
-	Del(uid, key string, su bool) error
+	Get(ctx context.Context, uid, key string, su bool) (model.DataEl, error)
+	Put(ctx context.Context, uid, key string, value model.DataEl, su bool) error
+	Del(ctx context.Context, uid, key string, su bool) (string, error)
 	List(ctx context.Context, uid string) ([]string, error)
-	GetUn(shortlink string) (string, error)
+	GetUn(ctx context.Context, shortlink string) (string, error)
 	PutUser(value model.User) (string, error)
 	DelUser(uid string) error
 	GetUser(uid string) (model.User, error)
@@ -477,7 +477,7 @@ func delFromLink(linkSvc linkSvc, tracer opentracing.Tracer) http.HandlerFunc {
 		}
 
 		//found key, delete it
-		err := linkSvc.Del(usefulUID, storageKey, false)
+		_, err := linkSvc.Del(ctx, usefulUID, storageKey, false)
 		if err != nil {
 			ResponseAPIError(w, 10, http.StatusBadRequest)
 			return
@@ -520,7 +520,7 @@ func putToLink(linkSvc linkSvc, tracer opentracing.Tracer) http.HandlerFunc {
 			if suid == UID {
 				// superuser updates other user record here
 				// get uid of that user
-				dbElem, _ := linkSvc.Get(UID, shortURL, true)
+				dbElem, _ := linkSvc.Get(ctx, UID, shortURL, true)
 				usefulUID = dbElem.UID
 				flag = true
 			}
@@ -542,7 +542,7 @@ func putToLink(linkSvc linkSvc, tracer opentracing.Tracer) http.HandlerFunc {
 		element.UID = usefulUID
 		element.Active = 1
 		//looks ok, update storage
-		err = linkSvc.Put(usefulUID, element.Shorturl, element, false)
+		err = linkSvc.Put(ctx, usefulUID, element.Shorturl, element, false)
 		if err != nil {
 			ResponseAPIError(w, 9, http.StatusBadRequest)
 		}
@@ -629,7 +629,7 @@ func postToLink(linkSvc linkSvc, tracer opentracing.Tracer) http.HandlerFunc {
 		}
 		element.UID = UID
 		element.Active = 1
-		err = linkSvc.Put(UID, element.Shorturl, element, false)
+		err = linkSvc.Put(ctx, UID, element.Shorturl, element, false)
 		if err != nil {
 			ResponseAPIError(w, 10, http.StatusBadRequest)
 			return
@@ -706,7 +706,7 @@ func getFromLink(linkSvc linkSvc, tracer opentracing.Tracer) http.HandlerFunc {
 
 		// fill up array with data for json output
 		for _, storageKey := range storageKeys {
-			getElement, errfor := linkSvc.Get(UID, storageKey, false)
+			getElement, errfor := linkSvc.Get(ctx, UID, storageKey, false)
 			if errfor != nil {
 				ResponseAPIError(w, 10, http.StatusBadRequest)
 				return
@@ -751,7 +751,7 @@ func getShortStat(linkSvc linkSvc, tracer opentracing.Tracer) http.HandlerFunc {
 				params := mux.Vars(request)
 				shortURL := params["shortlink"]
 				//ignore uid
-				getElement, err := linkSvc.Get(UID, shortURL, true)
+				getElement, err := linkSvc.Get(ctx, UID, shortURL, true)
 				if err != nil {
 					ResponseAPIError(w, 10, http.StatusBadRequest)
 					return
@@ -777,7 +777,7 @@ func getShortStat(linkSvc linkSvc, tracer opentracing.Tracer) http.HandlerFunc {
 			return
 		}
 
-		getElement, err := linkSvc.Get(UID, storageKey, false)
+		getElement, err := linkSvc.Get(ctx, UID, storageKey, false)
 		if err != nil {
 			ResponseAPIError(w, 10, http.StatusBadRequest)
 			return
@@ -806,7 +806,7 @@ func getShortOpen(linkSvc linkSvc, tracer opentracing.Tracer) http.HandlerFunc {
 		params := mux.Vars(request)
 		shortURL := params["shortlink"]
 		// GetUn retreives link and updates redir count
-		URL, err := linkSvc.GetUn(shortURL)
+		URL, err := linkSvc.GetUn(ctx, shortURL)
 		if err != nil {
 			ResponseAPIError(w, 10, http.StatusBadRequest)
 			return

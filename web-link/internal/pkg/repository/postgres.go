@@ -265,7 +265,7 @@ func (pgr *PgRepo) New(ctx context.Context, filename string, tracer opentracing.
 // Get - get data string from pg repo
 // uid - user uid, key - shortlink
 // if uid == suid (SUPERUSER uid) - retreives information despite original uid
-func (pgr *PgRepo) Get(uid, key string, su bool) (model.DataEl, error) {
+func (pgr *PgRepo) Get(ctx context.Context, uid, key string, su bool) (model.DataEl, error) {
 
 	grGet := func(ctx context.Context, dbpool *pgxpool.Pool, uid, shorturl string, su bool) (UserData, error) {
 		const sql = `
@@ -345,7 +345,7 @@ func (pgr *PgRepo) Get(uid, key string, su bool) (model.DataEl, error) {
 // Put - store data string to pg repo
 // uid - user uid, key - shortlink
 // if uid == suid (SUPERUSER uid) - updates repo information despite original uid
-func (pgr *PgRepo) Put(uid, key string, value model.DataEl, su bool) error {
+func (pgr *PgRepo) Put(ctx context.Context, uid, key string, value model.DataEl, su bool) error {
 
 	grPut := func(ctx context.Context, dbpool *pgxpool.Pool, uid, key string, userdata *UserData) error {
 		const sql = `
@@ -398,7 +398,7 @@ func (pgr *PgRepo) Put(uid, key string, value model.DataEl, su bool) error {
 // Del - delete data entity from pg repo
 // uid - user uid, key - shortlink
 // if uid == suid (SUPERUSER uid) - updates repo information despite original uid
-func (pgr *PgRepo) Del(uid, key string, su bool) error {
+func (pgr *PgRepo) Del(ctx context.Context, uid, key string, su bool) (string, error) {
 
 	grDel := func(ctx context.Context, dbpool *pgxpool.Pool, uid, shorturl string, su bool) error {
 		const sql = `
@@ -431,16 +431,45 @@ func (pgr *PgRepo) Del(uid, key string, su bool) error {
 
 	suid, _ := pgr.FindSuperUser()
 	var err error
+	var useruid string
 	if suid == uid {
+		useruid, _ = grGetUseruid(pgr.CTX, pgr.DBPool, key)
 		err = grDel(pgr.CTX, pgr.DBPool, uid, key, true)
 	} else {
 		err = grDel(pgr.CTX, pgr.DBPool, uid, key, false)
+		useruid = uid
 	}
 
 	if err != nil {
-		return err
+		return "", err
 	}
-	return nil
+	return useruid, nil
+}
+
+// grGetUseruid - func retrieves uid from from short_url link
+// its needed for normal cache working
+func grGetUseruid(ctx context.Context, dbpool *pgxpool.Pool, shorturl string) (string, error) {
+	const sql = `
+	SELECT uid FROM users_data
+    	WHERE short_url = $1;
+	`
+	var (
+		rows pgx.Rows
+		err  error
+		uid  string
+	)
+
+	rows, err = dbpool.Query(ctx, sql, shorturl)
+	defer rows.Close()
+
+	for rows.Next() {
+		err = rows.Scan(&uid)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	return uid, nil
 }
 
 // List - list all keys for this user uid
@@ -527,7 +556,7 @@ func inTx(ctx context.Context, dbpool *pgxpool.Pool, f TransactionFunc) (string,
 
 // GetUn - find unique shortlink in storage for shortopen api method
 // + update redir count (protected by lock)
-func (pgr *PgRepo) GetUn(shortlink string) (string, error) {
+func (pgr *PgRepo) GetUn(ctx context.Context, shortlink string) (string, error) {
 
 	grGetUn := func(ctx context.Context, dbpool *pgxpool.Pool, shorturl string) (string, error) {
 
@@ -588,7 +617,7 @@ func MyHash256(seq string) string {
 	return fmt.Sprintf("%x", hash[:15])
 }
 
-// PutUser new user add or update
+// PutUser new user add or update current profile
 func (pgr *PgRepo) PutUser(value model.User) (string, error) {
 
 	grAddUser := func(ctx context.Context, dbpool *pgxpool.Pool, user *User) (int, error) {

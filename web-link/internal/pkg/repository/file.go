@@ -18,11 +18,11 @@ import (
 // RepoIf - main methods for a storage (a file repo) same as linkSVC
 type RepoIf interface {
 	New(ctx context.Context, filename string, tracer opentracing.Tracer) RepoIf
-	Get(uid, key string, su bool) (model.DataEl, error)
-	Put(uid, key string, value model.DataEl, su bool) error
-	Del(uid, key string, su bool) error
+	Get(ctx context.Context, uid, key string, su bool) (model.DataEl, error)
+	Put(ctx context.Context, uid, key string, value model.DataEl, su bool) error
+	Del(ctx context.Context, uid, key string, su bool) (string, error)
 	List(ctx context.Context, uid string) ([]string, error)
-	GetUn(shortlink string) (string, error)
+	GetUn(ctx context.Context, shortlink string) (string, error)
 	CloseConn()
 	PutUser(value model.User) (string, error)
 	DelUser(uid string) error
@@ -146,7 +146,7 @@ func (fr *FileRepo) FileRepoUnpackToStruct() error {
 
 // Get - get data string from repo
 // uid:key - user:key
-func (fr *FileRepo) Get(uid, key string, su bool) (model.DataEl, error) {
+func (fr *FileRepo) Get(ctx context.Context, uid, key string, su bool) (model.DataEl, error) {
 	fr.RWMutex.RLock() // read lock only
 	defer fr.RWMutex.RUnlock()
 	// get data needed
@@ -168,7 +168,7 @@ func (fr *FileRepo) Get(uid, key string, su bool) (model.DataEl, error) {
 
 // GetUn - find unique shortlink in storage for shortopen api method
 // + update redir count (protected by lock)
-func (fr *FileRepo) GetUn(shortlink string) (string, error) {
+func (fr *FileRepo) GetUn(ctx context.Context, shortlink string) (string, error) {
 	fr.RWMutex.Lock()
 	defer fr.RWMutex.Unlock()
 	// get data needed
@@ -201,7 +201,7 @@ func (fr *FileRepo) GetUn(shortlink string) (string, error) {
 }
 
 // Put - store data string to repo
-func (fr *FileRepo) Put(uid, key string, value model.DataEl, su bool) error {
+func (fr *FileRepo) Put(ctx context.Context, uid, key string, value model.DataEl, su bool) error {
 	fr.RWMutex.Lock()
 	defer fr.RWMutex.Unlock()
 	/*	if _, ok := fr.fileData[key]; !ok {
@@ -221,7 +221,7 @@ func (fr *FileRepo) Put(uid, key string, value model.DataEl, su bool) error {
 }
 
 // Del - mark Active = 0 to 'delete'
-func (fr *FileRepo) Del(uid, key string, su bool) error {
+func (fr *FileRepo) Del(ctx context.Context, uid, key string, su bool) (string, error) {
 	fr.RWMutex.Lock()
 	defer fr.RWMutex.Unlock()
 	key = uid + ":" + key
@@ -231,12 +231,12 @@ func (fr *FileRepo) Del(uid, key string, su bool) error {
 		// dump data to file straight away
 		err := fr.DumpMapToFile()
 		if err != nil {
-			return err
+			return "", err
 		}
-		return nil
+		return uid, nil
 	}
 	err := fmt.Errorf("delete error key %s don't exist", key)
-	return err
+	return "", err
 }
 
 // List - list all keys for this user uid

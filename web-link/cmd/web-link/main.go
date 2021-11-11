@@ -11,6 +11,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/app/service"
+
 	_ "github.com/pehks1980/go_gb_be1_kurs/web-link/internal/app/config"
 	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/app/endpoint"
 	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/pkg/repository"
@@ -59,8 +61,6 @@ func main() {
 		log.Printf("$PORT is not set. using default %s", *portdef)
 		port = *portdef
 	}
-	// инициализация файлового хранилища ук на структуру repo
-	var repoif, linkSVC repository.RepoIf
 
 	// init tracer
 	jLogger := jaegerlog.StdLogger
@@ -83,20 +83,25 @@ func main() {
 	}
 	// close the closer
 	defer jCloser.Close()
+
+	// инициализация файлового хранилища ук на структуру repo
+	var repoif, linkSVC repository.RepoIf
+
 	// create empty context for this app
 	ctx := context.Background()
 	// подстановка в интерфейс соотвествующего хранилища
 	if *storageType == "file" {
 		repoif = new(repository.FileRepo)
-		linkSVC = repoif.New(ctx, *storageName, jTracer)
 	}
 	if *storageType == "pg" {
 		repoif = new(repository.PgRepo)
-		linkSVC = repoif.New(ctx, *storageName, jTracer)
-		defer linkSVC.CloseConn()
-
 	}
-
+	// init selected repo interface (file or pg)
+	repoif = repoif.New(ctx, *storageName, jTracer)
+	defer repoif.CloseConn()
+	// init service interface which works as shim between selected repo and http handlers
+	// service interface provides redis cache feature
+	linkSVC = service.New(repoif)
 	//repoif = new(repository.MemRepo)
 
 	// repoif <-> linkSVC

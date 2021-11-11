@@ -5,19 +5,48 @@ package repository_test
 // go test --tags=integration . --run tests + integration tests. ,
 // '/ +build integration' avoids test to be runned by 'go test .'
 import (
+	"context"
 	"fmt"
+	"log"
 	"testing"
 	"time"
 
 	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/pkg/model"
 	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/pkg/repository"
 	"github.com/stretchr/testify/require"
+
+	"github.com/uber/jaeger-client-go/config"
+	jaegerlog "github.com/uber/jaeger-client-go/log"
 )
 
 func TestIntegrationSVC(t *testing.T) {
 	var repoif, linkSVC repository.RepoIf
 	repoif = new(repository.PgRepo)
-	linkSVC = repoif.New("postgres://postuser:postpassword@192.168.1.204:5432/a4")
+	ctx := context.Background()
+
+	// init tracer
+	jLogger := jaegerlog.StdLogger
+	// tracer config init
+	cfg := &config.Configuration{
+		ServiceName: "weblink",
+		Sampler: &config.SamplerConfig{
+			Type:  "const",
+			Param: 1,
+		},
+		Reporter: &config.ReporterConfig{
+			LocalAgentHostPort: "127.0.0.1:6831",
+			LogSpans:           true,
+		},
+	}
+	jTracer, jCloser, err := cfg.NewTracer(config.Logger(jLogger))
+
+	if err != nil {
+		log.Fatalf("cannot init Jaeger err: %v", err)
+	}
+	// close the closer
+	defer jCloser.Close()
+
+	linkSVC = repoif.New(ctx, "postgres://postuser:postpassword@192.168.1.204:5432/a4", jTracer)
 	// init test struct
 	tests := []struct {
 		name     string
@@ -123,13 +152,13 @@ func TestIntegrationSVC(t *testing.T) {
 					Datetime: time.Now(),
 				}
 
-				_ = linkSVC.Put(uid, userdata.Shorturl, userdata, false)
+				_ = linkSVC.Put(ctx, uid, userdata.Shorturl, userdata, false)
 
 				return UID
 			},
 			testfunc: func(UID []string) (model.Data, model.User, error) {
 				fmt.Print("run Get\n")
-				userdata, err := linkSVC.Get(UID[0], "abracadabra.gu", false)
+				userdata, err := linkSVC.Get(ctx, UID[0], "abracadabra.gu", false)
 				var Data model.Data
 				Data.Data = append(Data.Data, userdata)
 				return Data, model.User{}, err
@@ -172,7 +201,7 @@ func TestIntegrationSVC(t *testing.T) {
 					Datetime: time.Now(),
 				}
 
-				_ = linkSVC.Put(UID[0], userdata.Shorturl, userdata, false)
+				_ = linkSVC.Put(ctx, UID[0], userdata.Shorturl, userdata, false)
 
 				user = model.User{
 					Name:    "test_user2",
@@ -190,7 +219,7 @@ func TestIntegrationSVC(t *testing.T) {
 			},
 			testfunc: func(UID []string) (model.Data, model.User, error) {
 				fmt.Print("run PAY USER 0 to 1\n")
-				err := linkSVC.PayUser(UID[0], UID[1], "49.99")
+				err := linkSVC.PayUser(ctx, UID[0], UID[1], "49.99")
 				return model.Data{}, model.User{}, err
 			},
 			check: func(t *testing.T, alldata model.Data, user model.User, err error) {

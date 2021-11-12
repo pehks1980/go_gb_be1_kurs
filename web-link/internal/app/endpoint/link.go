@@ -38,7 +38,7 @@ type linkSvc interface {
 	WhoAmI() uint64
 	PayUser(ctx context.Context, uidA, uidB, amount string) error
 	FindSuperUser() (string, error)
-	GetAll() (model.Data, error)
+	GetAll(ctx context.Context, uid string) (model.Data, error)
 	AuthUser(user model.User) (string, error)
 	GetAllUsers() (model.Users, error)
 }
@@ -669,7 +669,7 @@ func getFromLink(linkSvc linkSvc, tracer opentracing.Tracer) http.HandlerFunc {
 			}
 			if user.Role == "USER" || user.Role == "SUPERUSER" {
 				//
-				sqlData, err3 := linkSvc.GetAll()
+				sqlData, err3 := linkSvc.GetAll(ctx, UID)
 				if err3 != nil {
 					//to do insert reply with error
 					return
@@ -802,21 +802,26 @@ func getShortOpen(linkSvc linkSvc, tracer opentracing.Tracer) http.HandlerFunc {
 		// get data
 		// update data
 		// redir to real link
-
-		params := mux.Vars(request)
-		shortURL := params["shortlink"]
-		// GetUn retreives link and updates redir count
-		URL, err := linkSvc.GetUn(ctx, shortURL)
-		if err != nil {
-			ResponseAPIError(w, 10, http.StatusBadRequest)
-			return
-		}
-		if URL == "" {
-			ResponseAPIError(w, 404, http.StatusBadRequest)
-			return
-		}
-
 		checkif := linkSvc.WhoAmI()
+		var URL string
+		var err error
+		// in case of file repo do it and in case of db repo will do it if payment successfull
+		if checkif == 0 {
+			params := mux.Vars(request)
+			shortURL := params["shortlink"]
+			// GetUn retreives link and updates redir count++
+			URL, err = linkSvc.GetUn(ctx, shortURL)
+
+			if err != nil {
+				ResponseAPIError(w, 10, http.StatusBadRequest)
+				return
+			}
+			if URL == "" {
+				ResponseAPIError(w, 404, http.StatusBadRequest)
+				return
+			}
+		}
+
 		//db version supports payments for opening links
 		if checkif == 1 {
 			//make payment of 10.00 for the superuser account from USER who opened link
@@ -856,7 +861,21 @@ func getShortOpen(linkSvc linkSvc, tracer opentracing.Tracer) http.HandlerFunc {
 				}
 
 			} else {
-				log.Printf("user is not USER, no payment available\n")
+				log.Printf("user type is not USER, no payment available\n")
+			}
+
+			params := mux.Vars(request)
+			shortURL := params["shortlink"]
+			// GetUn retreives link and updates redir count++
+			URL, err = linkSvc.GetUn(ctx, shortURL)
+
+			if err != nil {
+				ResponseAPIError(w, 10, http.StatusBadRequest)
+				return
+			}
+			if URL == "" {
+				ResponseAPIError(w, 404, http.StatusBadRequest)
+				return
 			}
 
 			var jsonAns = Answer{

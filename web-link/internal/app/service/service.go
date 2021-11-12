@@ -29,7 +29,7 @@ type cachedrepo interface {
 	WhoAmI() uint64
 	PayUser(ctx context.Context, uidA, uidB, amount string) error
 	FindSuperUser() (string, error)
-	GetAll() (model.Data, error)
+	GetAll(ctx context.Context, uid string) (model.Data, error)
 	AuthUser(user model.User) (string, error)
 	GetAllUsers() (model.Users, error)
 }
@@ -93,6 +93,19 @@ func (s *Service) flushcacheList(ctx context.Context, uid string) {
 		}
 		log.Printf("cache of List for %s is deleted", uid)
 	}
+	s.flushcacheGetAll(ctx, uid)
+}
+
+// flushcacheGetAll - when db updated flush cache row related to it
+func (s *Service) flushcacheGetAll(ctx context.Context, uid string) {
+	key := fmt.Sprintf("uid_GETALL:")
+	if s.repcache.Exists(ctx, key) {
+		err := s.repcache.Delete(ctx, key)
+		if err != nil {
+			log.Printf("service/flushcache: del cache err: %v", err)
+		}
+		log.Printf("cache of GetAll for %s is deleted", uid)
+	}
 }
 
 // Del when delete from storage
@@ -110,35 +123,79 @@ func (s *Service) Del(ctx context.Context, uid, key string, su bool) (string, er
 func (s *Service) List(ctx context.Context, uid string) ([]string, error) {
 	key := fmt.Sprintf("uid_LIST:%s", uid)
 	var items []string
-	err := s.repcache.Get(ctx, key, &items)
+	var dbitems []string
+	var err1 error
+	err2 := s.repcache.Get(ctx, key, &items)
 
-	if err == nil {
-		log.Printf("items for %s is from cache", uid)
+	if err2 == nil {
+		log.Printf("items for %s are from cache", uid)
 		return items, nil
 	}
 
-	if err == cache.ErrCacheMiss {
-		dbitems, err1 := s.repo.List(ctx, uid)
-		if err1 != nil {
-			log.Printf("service/List: get from repo err: %v", err)
-			return nil, err
-		}
+	dbitems, err1 = s.repo.List(ctx, uid)
+	if err1 != nil {
+		log.Printf("service/List: get from repo err: %v", err1)
+		return nil, err1
+	}
 
-		err = s.repcache.Set(&cache.Item{
-			Ctx:   ctx,
-			Key:   key,
-			Value: dbitems,
-			TTL:   time.Hour,
-		})
-		if err != nil {
-			log.Printf("items for %s cannot be taken from cache: err: %v", uid, err)
-			return nil, err
-		}
-		log.Printf("items for %s is from repo", uid)
+	err := s.repcache.Set(&cache.Item{
+		Ctx:   ctx,
+		Key:   key,
+		Value: dbitems,
+		TTL:   time.Hour,
+	})
+	if err != nil {
+		log.Printf("items for %s cannot be put to cache: err: %v", uid, err)
+	}
+
+	if err2 == cache.ErrCacheMiss {
+		log.Printf("items for %s are absent in cache and taken from repo", uid)
 		return dbitems, nil
 	}
 
-	return nil, err
+	log.Printf("items for %s are taken from repo because cache redis has problem", uid)
+	return dbitems, nil
+}
+
+//GetAll - get all links in db (only in pg mode)
+func (s *Service) GetAll(ctx context.Context, uid string) (model.Data, error) {
+
+	key := fmt.Sprintf("uid_GETALL:")
+	var items model.Data
+	var dbitems model.Data
+	var err1 error
+
+	err2 := s.repcache.Get(ctx, key, &items)
+
+	if err2 == nil {
+		log.Printf("items (getall) for %s are from cache", uid)
+		return items, nil
+	}
+
+	dbitems, err1 = s.repo.GetAll(ctx, uid)
+	if err1 != nil {
+		log.Printf("service/GetAll: repo err: %v", err1)
+		return model.Data{}, err1
+	}
+
+	err := s.repcache.Set(&cache.Item{
+		Ctx:   ctx,
+		Key:   key,
+		Value: dbitems,
+		TTL:   time.Hour,
+	})
+	if err != nil {
+		log.Printf("items (getall) for %s cannot be put to cache: err: %v", uid, err)
+	}
+
+	if err2 == cache.ErrCacheMiss {
+		log.Printf("items (getall) for %s are absent in cache and taken from repo", uid)
+		return dbitems, nil
+	}
+
+	log.Printf("items (getall) for %s are taken from repo because cache redis has problem", uid)
+	return dbitems, nil
+
 }
 
 // GetUn - get unique link unanimously from storage
@@ -149,7 +206,7 @@ func (s *Service) GetUn(ctx context.Context, shortlink string) (string, error) {
 		log.Printf("service/GetUn: from repo err: %v", err)
 		return "", err
 	}
-
+	s.flushcacheGetAll(ctx, "dummy")
 	return value, nil
 }
 
@@ -206,16 +263,6 @@ func (s *Service) FindSuperUser() (string, error) {
 	if err != nil {
 		log.Printf("service/FindSU: find su repo err: %v", err)
 		return "", err
-	}
-	return value, nil
-}
-
-//GetAll - get all links in db (only in pg mode)
-func (s *Service) GetAll() (model.Data, error) {
-	value, err := s.repo.GetAll()
-	if err != nil {
-		log.Printf("service/GetAll: repo err: %v", err)
-		return model.Data{}, err
 	}
 	return value, nil
 }

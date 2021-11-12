@@ -346,6 +346,7 @@ app.get('/', function(req, res) {
             }
 
             if (resp.statusCode != 200) {
+                console.log("body=", body);
                 res.render('page/index', {
                     mascots: mascots,
                     tagline: tagline,
@@ -392,6 +393,7 @@ app.get('/admin', function(req, res) {
 
             if (resp.statusCode !== 200) {
                 // error
+                console.log("mc=", mc);
                 res.render('page/unathorized', {user: user});
                 return;
             }
@@ -425,6 +427,7 @@ app.get('/list', function(req, res) {
 
                 if (resp.statusCode !== 200) {
                     // error
+                    console.log("mc=", mc);
                     res.render('page/unathorized', {user: user});
                     return;
                 }
@@ -479,6 +482,7 @@ app.get('/listupd', (req, res) => {
 
             if (resp.statusCode !== 200) {
                 // error
+                console.log("mc=", mc);
                 res.render('page/unathorized', {user: user});
                 return;
             }
@@ -539,6 +543,7 @@ app.post('/deluser', (req, res) => {
         }
 
         if (resp.statusCode !== 200 ) {
+            console.log("body=", body);
             res.render('page/unathorized', {user: user});
             return;
         }
@@ -568,6 +573,7 @@ app.get('/upduser', (req, res) => {
             }
 
             if (resp.statusCode != 200) {
+                console.log("mc=", mc);
                 res.render('page/unathorized', {user: user});
                 return;
             }
@@ -613,6 +619,7 @@ app.post('/upduser', (req, res) => {
         }
 
         if (resp.statusCode != 200) {
+            console.log('api body',body);
             res.render('page/unathorized', {user: user});
             return;
         }
@@ -643,11 +650,12 @@ app.get('/check', (req, res) => {
             }
 
             if (resp.statusCode != 200) {
+                console.log("mc=", mc);
                 res.render('page/unathorized', {user: user});
                 return;
             }
             // get json from api put it as instance //called 'get shortstat/{link} api'
-            console.log("mc=", mc);
+
             // no edit data - silently go to /
             if (mc.url == undefined) {
                 res.redirect('/');

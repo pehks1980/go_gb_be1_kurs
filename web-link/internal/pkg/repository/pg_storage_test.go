@@ -78,7 +78,8 @@ func TestIntegrationSVC(t *testing.T) {
 			},
 			testfunc: func(UID []string) (model.Data, model.User, error) {
 				fmt.Print("run GetAll()\n")
-				data, err := linkSVC.GetAll()
+				ctx := context.Background()
+				data, err := linkSVC.GetAll(ctx, UID[0])
 				return data, model.User{}, err
 			},
 			check: func(t *testing.T, alldata model.Data, user model.User, err error) {

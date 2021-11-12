@@ -30,7 +30,7 @@ type RepoIf interface {
 	WhoAmI() uint64
 	PayUser(ctx context.Context, uidA, uidB, amount string) error
 	FindSuperUser() (string, error)
-	GetAll() (model.Data, error)
+	GetAll(ctx context.Context, uid string) (model.Data, error)
 	AuthUser(user model.User) (string, error)
 	GetAllUsers() (model.Users, error)
 }
@@ -255,7 +255,7 @@ func (fr *FileRepo) List(ctx context.Context, uid string) ([]string, error) {
 }
 
 // GetAll заглушки
-func (fr *FileRepo) GetAll() (model.Data, error) {
+func (fr *FileRepo) GetAll(ctx context.Context, uid string) (model.Data, error) {
 	return model.Data{}, nil
 }
 

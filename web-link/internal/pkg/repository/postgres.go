@@ -989,7 +989,7 @@ func (pgr *PgRepo) PayUser(ctx context.Context, uidA, uidB, amount string) error
 }
 
 // GetAll get all data items (with links) from pg db sorted by date
-func (pgr *PgRepo) GetAll() (model.Data, error) {
+func (pgr *PgRepo) GetAll(ctx context.Context, uid string) (model.Data, error) {
 
 	grGetAll := func(ctx context.Context, dbpool *pgxpool.Pool) ([]UserData, error) {
 		const sql = `

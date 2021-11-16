@@ -1,11 +1,7 @@
 //// local data 'storage'
-var token = '';
+//var token = '';
 var tokenPayload = ''
-var user = {
-        name : '',
-        role : '',
-        balance: ''
-    };
+
 // select api address
 const apiurl = 'http://127.0.0.1:8000'; //local
 //const apiurl = 'https://web-link19801.herokuapp.com'; // heroku
@@ -47,16 +43,41 @@ app.use(express.json());
 //post form data parser
 const bodyParser = require('body-parser');
 const jwt_decode = require('jwt-decode');
+
+const session = require("express-session");
+const redis = require("redis");
+
+const RedisStore = require('connect-redis')(session);
+//Configure redis client
+const RedisClient = redis.createClient({
+    host: '192.168.1.204',
+    port: 6379
+})
+
+RedisClient.on('error', function (err) {
+    console.log('Could not establish a connection with redis. ' + err);
+});
+RedisClient.on('connect', function (err) {
+    console.log('Connected to redis successfully');
+});
+
+app.use(session({
+    secret: 'ajfr9IZuswOlMow6oy1I',
+    resave: false,
+    saveUninitialized: true,
+    store: new RedisStore({ client: RedisClient }),
+}))
+
 app.use(bodyParser.urlencoded({ extended: true }));
 //// api cb funcs
-//// get token for uid
-function getUserAPI(callback, uid){
+//// get user profile
+function getUserAPI(callback, uid, token){
 
     var options = {
         method: 'GET',
         headers: {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer '+token,
+            'Authorization': 'Bearer '+ token,
         },
         json : true,
     };
@@ -74,8 +95,8 @@ function getUserAPI(callback, uid){
             callback(response,body)
     });
 }
-//// get token for uid
-function getAllUsersAPI(callback){
+//// get list of users (admin)
+function getAllUsersAPI(callback, token){
 
     var options = {
         method: 'GET',
@@ -94,7 +115,7 @@ function getAllUsersAPI(callback){
             callback(response, body)
     });
 };
-//// get token for uid
+//// get register new user (with role as USER)
 function regAPI(callback, username, passwd, email){
 
     var options = {
@@ -113,7 +134,7 @@ function regAPI(callback, username, passwd, email){
         callback(response,body)
     });
 }
-
+///  get jwt token for username and password
 function authAPI1(callback, username, password){
 
     var options = {
@@ -133,7 +154,7 @@ function authAPI1(callback, username, password){
     });
 }
 //// delete user
-function delUserAPI(callback,uid){
+function delUserAPI(callback,uid, token){
 
     var options = {
         method: 'DELETE',
@@ -153,8 +174,8 @@ function delUserAPI(callback,uid){
         callback(response,body)
     });
 }
-/// put user
-function putUserAPI(callback,user,uid){
+//// put user
+function putUserAPI(callback,user,uid, token){
 
     var options = {
         method: 'PUT',
@@ -175,13 +196,13 @@ function putUserAPI(callback,user,uid){
     });
 }
 //// delete item
-function delLinkItemAPI(callback, shorturl){
+function delLinkItemAPI(callback, shorturl, token){
 
     var options = {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer '+token,
+        'Authorization': 'Bearer ' + token,
       },
       json : true,
 
@@ -196,15 +217,15 @@ function delLinkItemAPI(callback, shorturl){
             callback(response,body)
     });
 }
-/// put item
-function putAPI1(callback){
+//// put item
+function putAPI1(callback, token){
 
     var redirsint = parseFloat(putredirs);
     var options = {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer '+token,
+        'Authorization': 'Bearer '+ token,
       },
       json : {
           'url': puturl,
@@ -230,8 +251,8 @@ function putAPI1(callback){
         };
     });
 }
-/// post item
-function postAPI1(callback, item){
+///  post item
+function postAPI1(callback, item, token){
 
     var options = {
       method: 'POST',
@@ -256,7 +277,7 @@ function postAPI1(callback, item){
     });
 }
 //// get list of items
-function getItemsListAPI(callback) {
+function getItemsListAPI(callback, token) {
 
     var options = {
       method: 'GET',
@@ -277,7 +298,7 @@ function getItemsListAPI(callback) {
 
 }
 //// get link item
-function getLinkItemAPI(callback, shorturl) {
+function getLinkItemAPI(callback, shorturl, token) {
     var options = {
         method: 'GET',
         headers: {
@@ -295,8 +316,8 @@ function getLinkItemAPI(callback, shorturl) {
         callback(response,body)
     });
 }
-
-function getShortOpenAPI(callback) {
+//// open short link
+function getShortOpenAPI(callback, token) {
     var options = {
         method: 'GET',
         headers: {
@@ -315,8 +336,15 @@ function getShortOpenAPI(callback) {
     });
 }
 //// get handlers
+
 //// index page
 app.get('/', function(req, res) {
+    let user = {
+        name : '',
+        role : '',
+        balance: ''
+    };
+
     var mascots = [
         {name: 'Sammy', organization: "DigitalOcean", birth_year: 2012},
         {name: 'Tux', organization: "Linux", birth_year: 1996},
@@ -324,7 +352,7 @@ app.get('/', function(req, res) {
     ];
     var tagline = "No programming concept is complete without a cute animal mascot.";
 
-    if (token == '') {
+    if (!req.session.key) {
         res.render('page/index', {
             mascots: mascots,
             tagline: tagline,
@@ -334,51 +362,39 @@ app.get('/', function(req, res) {
     }
 
     getUserAPI(
-    function (resp, body) {
+        function (resp, body) {
+            console.log('body getuser= ',body)
+            req.session.key['name'] = body.name
+            req.session.key['role'] = body.role
+            req.session.key['balance'] = body.balance
 
-            if (resp == undefined) {
-                res.render('page/index', {
-                    mascots: mascots,
-                    tagline: tagline,
-                    user: user,
-                });
-                return;
-            }
-
-            if (resp.statusCode != 200) {
-                console.log("body=", body);
-                res.render('page/index', {
-                    mascots: mascots,
-                    tagline: tagline,
-                    user: user,
-                });
-                return;
-            }
-
-            user.name = body.name
-            user.role = body.role
-            user.balance = body.balance
-            console.log('api getUserAPI res ', body);
-
+            user = {
+                name : req.session.key['name'],
+                role : req.session.key['role'],
+                balance: req.session.key['balance']
+            };
+            console.log('user=', user)
             res.render('page/index', {
                 mascots: mascots,
                 tagline: tagline,
                 user: user,
             });
 
-        });
-
+        }, req.session.key['uid'], req.session.key['token']);
 
 });
 //// admin page
 app.get('/admin', function(req, res) {
-    console.log('api haha\n$$$$$$$$$$$$$$$$$$$$$$$$$$\n')
-    if (!checktoken(token)) {
+    let user = {}
+    if (!req.session.key) {
         // no token
         res.render('page/unathorized', {user: null});
         return;
     }
 
+    user['name'] = req.session.key['name']
+    user['role'] = req.session.key['role']
+    user['balance'] = req.session.key['balance']
     console.log("user=",user)
 
     getAllUsersAPI(
@@ -404,15 +420,21 @@ app.get('/admin', function(req, res) {
                 nodejs: nodejsurl
             });
 
-    });
+    }, req.session.key['token']);
 
 });
 //// list items page
 app.get('/list', function(req, res) {
 
-        if (!checktoken(token)) {
-            res.render('page/unathorized', {user: user});
+        if (!req.session.key) {
+            res.render('page/unathorized', {user: null});
             return;
+        }
+
+        let user = {
+            'role':req.session.key['role'],
+            'balance':req.session.key['balance'],
+            'name':req.session.key['name']
         }
 
         getItemsListAPI(
@@ -459,13 +481,13 @@ app.get('/list', function(req, res) {
                     api: apiurl,
                     nodejs: nodejsurl
                 });
-            });
+            }, req.session.key['token']);
 
 });
 //// list update
 app.get('/listupd', (req, res) => {
 
-    if (!checktoken(token)) {
+    if (!req.session.key) {
         res.render('page/unathorized', {user: user});
         return;
     }
@@ -510,53 +532,103 @@ app.get('/listupd', (req, res) => {
                 res.send(result);
             });
 
-        });
+        }, req.session.key['token']);
 
 });
 //// login form
 app.get('/login', (req, res) => {
-    res.render('page/login', {title : 'login to API', user: user,});
+    const sess = req.session;
+
+    sess.destroy(err => {
+        if (err) {
+            return console.log(err);
+        }
+    });
+
+    res.render('page/login', {title : 'login to API', user: null,});
 });
 //// user register  form
 app.get('/register', (req, res) => {
     res.render('page/register', {title : 'Register new user', user: user,});
 });
-//// user delete item post button click
-app.post('/deluser', (req, res) => {
+//// pressed check link button form (from list)
+app.get('/check', (req, res) => {
 
-    if (!checktoken(token)) {
+    if (!req.session.key) {
         res.render('page/unathorized', {user: user});
         return;
     }
 
-    const click = {clickTime: new Date()};
-    console.log(`delete user ${click.clickTime}`, req.body.uid);
-    //store key link for api call
-    let uid = req.body.uid;
+    shorturl = req.query.shorturl
+    console.log(`check open link ${shorturl}`);
 
-    delUserAPI(function(resp,body /* api del call*/) {
-        console.log('api user delete resp=', resp.statusCode, 'body=',body);
+    getShortOpenAPI(
+        function (resp, mc) {
 
-        if (resp == undefined){
-            res.render('page/unathorized', {user: user});
-            return;
-        }
+            if (resp == undefined) {
+                res.render('page/unathorized', {user: user});
+                return;
+            }
 
-        if (resp.statusCode !== 200 ) {
-            console.log("body=", body);
-            res.render('page/unathorized', {user: user});
-            return;
-        }
+            if (resp.statusCode != 200) {
+                console.log("mc=", mc);
+                res.render('page/unathorized', {user: user});
+                return;
+            }
+            // get json from api put it as instance //called 'get shortstat/{link} api'
 
-        res.redirect('/admin')
+            // no edit data - silently go to /
+            if (mc.url == undefined) {
+                res.redirect('/');
+            }
 
-    },uid);
+            res.redirect(mc.url);
+        }, req.session.key['token']);
 
 });
 //// pressed edit link button form (from list)
-app.get('/upduser', (req, res) => {
+app.get('/edit', (req, res) => {
+    let user = {}
+    if (!req.session.key) {
+        res.render('page/unathorized', {user: user});
+        return;
+    }
 
-    if (!checktoken(token)) {
+    let shorturl = req.query.shorturl
+    console.log(`edit link ${shorturl}`);
+
+    getLinkItemAPI(function (resp,mc) {
+
+        if (resp === undefined) {
+            res.render('page/unathorized', {user: user});
+            return;
+        }
+
+        if (resp.statusCode !== 200) {
+            res.render('page/unathorized', {user: user});
+            return;
+        }
+
+        // get json from api put it as instance //called 'get shortstat/{link} api'
+        console.log("mc=", mc.data);
+
+        if (mc.data == undefined) {
+            res.redirect('/');
+            return;
+        }
+
+        res.render('page/edit', {title: 'Edit Link', user: user, instance: mc.data[0]});
+    }, shorturl, req.session.key['token']);
+
+});
+//// add new link form
+app.get('/add', (req, res) => {
+    res.render('page/add', {title : 'add new link', user: null,});
+});
+//// pressed edit link button form (from list)
+app.get('/upduser', (req, res) => {
+    let user = {}
+    if (!req.session.key) {
         res.render('page/unathorized', {user: user});
         return;
     }
@@ -588,12 +660,46 @@ app.get('/upduser', (req, res) => {
 
             res.redirect('/');
 
-            },uid);
+        },uid, req.session.key['token']);
+});
+
+//// post handlers
+//// user delete item post button click
+app.post('/deluser', (req, res) => {
+
+    if (!req.session.key) {
+        res.render('page/unathorized', {user: user});
+        return;
+    }
+
+    const click = {clickTime: new Date()};
+    console.log(`delete user ${click.clickTime}`, req.body.uid);
+    //store key link for api call
+    let uid = req.body.uid;
+
+    delUserAPI(function(resp,body /* api del call*/) {
+        console.log('api user delete resp=', resp.statusCode, 'body=',body);
+
+        if (resp == undefined){
+            res.render('page/unathorized', {user: user});
+            return;
+        }
+
+        if (resp.statusCode !== 200 ) {
+            console.log("body=", body);
+            res.render('page/unathorized', {user: user});
+            return;
+        }
+
+        res.redirect('/admin')
+
+    },uid, req.session.key['token']);
+
 });
 //// edit user post handler button click
 app.post('/upduser', (req, res) => {
-
-    if (!checktoken(token)) {
+    let user = {}
+    if (!req.session.key) {
         res.render('page/unathorized', {user: user});
         return;
     }
@@ -602,7 +708,7 @@ app.post('/upduser', (req, res) => {
     console.log(`put ${click.clickTime}`, req.body);
 
     // get back params from form
-    let user = {
+    user = {
         name:    req.body.name,
         email:   req.body.email,
         role:    req.body.role,
@@ -626,92 +732,22 @@ app.post('/upduser', (req, res) => {
 
         console.log('api res',resp.statusCode, body);
 
-        res.redirect(nodejsurl+'/admin');
-    },user,uid);
+        res.redirect('/admin');
+    },user,uid, req.session.key['token']);
 
 });
-//// pressed check link button form (from list)
-app.get('/check', (req, res) => {
-
-    if (!checktoken(token)) {
-        res.render('page/unathorized', {user: user});
-        return;
-    }
-
-    shorturl = req.query.shorturl
-    console.log(`check open link ${shorturl}`);
-
-    getShortOpenAPI(
-        function (resp, mc) {
-
-            if (resp == undefined) {
-                res.render('page/unathorized', {user: user});
-                return;
-            }
-
-            if (resp.statusCode != 200) {
-                console.log("mc=", mc);
-                res.render('page/unathorized', {user: user});
-                return;
-            }
-            // get json from api put it as instance //called 'get shortstat/{link} api'
-
-            // no edit data - silently go to /
-            if (mc.url == undefined) {
-                res.redirect('/');
-            }
-
-            res.redirect(mc.url);
-    });
-
-});
-//// pressed edit link button form (from list)
-app.get('/edit', (req, res) => {
-
-    if (!checktoken(token)) {
-        res.render('page/unathorized', {user: user});
-        return;
-    }
-
-    let shorturl = req.query.shorturl
-    console.log(`edit link ${shorturl}`);
-
-    getLinkItemAPI(function (resp,mc) {
-
-        if (resp === undefined) {
-            res.render('page/unathorized', {user: user});
-            return;
-        }
-
-        if (resp.statusCode !== 200) {
-            res.render('page/unathorized', {user: user});
-            return;
-        }
-
-        // get json from api put it as instance //called 'get shortstat/{link} api'
-        console.log("mc=", mc.data);
-
-        if (mc.data == undefined) {
-            res.redirect('/');
-            return;
-        }
-
-        res.render('page/edit', {title: 'Edit Link', user: user, instance: mc.data[0]});
-    }, shorturl);
-
-});
-//// add new link form
-app.get('/add', (req, res) => {
-    res.render('page/add', {title : 'add new link', user: user,});
-});
-//// POST handlers
 //// add new link post form
 app.post('/add', (req, res) => {
 
-    if (!checktoken(token)) {
+    let user = {}
+    if (!req.session.key) {
         res.render('page/unathorized', {user: user});
         return;
     }
+
+    user['name'] = req.session.key['name']
+    user['role'] = req.session.key['role']
+    user['balance'] = req.session.key['balance']
 
     const click = {clickTime: new Date()};
     console.log(`create ${click.clickTime}`, req.body);
@@ -723,8 +759,9 @@ app.post('/add', (req, res) => {
         putredirs : req.body.redirs
     }
 
-    //console.log(shorturl,puturl,putredirs)
      postAPI1(function(resp,body )/* post to api new link*/ {
+
+         console.log('api res added, with ',body, 'status', resp.statusCode);
 
          if (resp == undefined){
              res.render('page/unathorized', {user: user});
@@ -736,25 +773,17 @@ app.post('/add', (req, res) => {
              return;
          }
 
-         console.log('api res added=',body, 'status', resp.statusCode);
          // after add go to list page
-         getUserAPI(
-             function (resp,body) {
-                 user.name = body.name
-                 user.role = body.role
-                 user.balance = body.balance
-                 console.log('api getUserAPI res',resp.statusCode);
-                 console.log('click add accepted');
-                 res.redirect('/list');
-             });
-
-     }, item);
+         console.log('api getUserAPI res', resp.statusCode);
+         console.log('click add accepted');
+         res.redirect('/list');
+     }, item, req.session.key['token']);
 
 });
 //// edit link post handler button click
 app.post('/edit', (req, res) => {
 
-    if (!checktoken(token)) {
+    if (!req.session.key) {
         res.render('page/unathorized', {user: user});
         return;
     }
@@ -770,7 +799,7 @@ app.post('/edit', (req, res) => {
          console.log('api res',res1);
          console.log('click put accepted');// go to list page after link update
          res.redirect('/list');
-    });
+    }, req.session.key['token']);
 
 });
 //// login form post reply
@@ -778,7 +807,9 @@ app.post('/login', (req, res) => {
     // Login Code Here
     let username = req.body.username;
     let password = req.body.password;
-    console.log(`auth ${req.body.username}`)
+    console.log(`auth ${req.body.username}, req.session=`, req.session)
+    const sess = req.session;
+    let user = {}
 
     authAPI1(function(resp,body) {
 
@@ -803,20 +834,25 @@ app.post('/login', (req, res) => {
         // store access jwt token
         // if api is not responding we get undefined res!!!
         // so we store token only if api is ok and we get authorization token
-        token = body.accessToken;
+        let token = body.accessToken;
         tokenPayload = jwtdecode(token)
         let uid = tokenPayload.uid
         console.log('api auth res', body.accessToken,'uid=',uid);
 
         getUserAPI(
-            function (res1) {
-                user.name = res1.name
-                user.role = res1.role
-                user.balance = res1.balance
+            function (resp, body) {
+                sess.key = {
+                        'token' : token,
+                        'uid': uid,
+                        'name': body.name,
+                        'role': body.role,
+                        'balance': body.balance,
+                    }
+
                 //console.log('api getUserAPI res', res1);
-                console.log('redirect to ', nodejsurl + '/', 'user=', user);
-                res.redirect(nodejsurl + '/');
-            });
+                console.log('redirect to ', nodejsurl + '/', 'session=', sess);
+                res.redirect('/');
+            }, uid, token);
 
     }, username, password);
 
@@ -832,15 +868,15 @@ app.post('/register', (req, res) => {
 
     regAPI(function(res1) {
         console.log('api register res',res1);
-        //redir to /
-        res.redirect(nodejsurl+'/login');
+        res.redirect('/login');
     }, username,password,email);
 
 });
 //// delete item post button click
 app.post('/delete', (req, res) => {
 
-    if (!checktoken(token)) {
+    let user = {}
+    if (!req.session.key) {
         res.render('page/unathorized', {user: user});
         return;
     }
@@ -865,18 +901,18 @@ app.post('/delete', (req, res) => {
 
         res.redirect('/list')
 
-    },shorturl);
+    },shorturl, req.session.key['token']);
 
 });
 
 // запускаем apm agent
-
+/*
 var apm = require('elastic-apm-node').start({
     serviceName: 'weblinknodeserver',
     serverUrl: 'http://localhost:8200',
     debug: 'true',
 })
-
+*/
 
 //// start node server.js
 app.listen(srvPort,srvIP);

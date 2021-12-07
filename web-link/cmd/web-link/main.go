@@ -101,7 +101,8 @@ func main() {
 	defer repoif.CloseConn()
 	// init service interface which works as shim between selected repo and http handlers
 	// service interface provides redis cache feature
-	linkSVC = service.New(repoif)
+	//linkSVC = service.New(repoif)
+	linkSVC = service.NewWb(repoif)
 	//repoif = new(repository.MemRepo)
 
 	// repoif <-> linkSVC

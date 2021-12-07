@@ -345,6 +345,7 @@ func (pgr *PgRepo) Get(ctx context.Context, uid, key string, su bool) (model.Dat
 // Put - store data string to pg repo
 // uid - user uid, key - shortlink
 // if uid == suid (SUPERUSER uid) - updates repo information despite original uid
+// checking if uid/suid is eligible is done at API handler level
 func (pgr *PgRepo) Put(ctx context.Context, uid, key string, value model.DataEl, su bool) error {
 
 	grPut := func(ctx context.Context, dbpool *pgxpool.Pool, uid, key string, userdata *UserData) error {

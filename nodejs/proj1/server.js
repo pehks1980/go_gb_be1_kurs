@@ -218,37 +218,30 @@ function delLinkItemAPI(callback, shorturl, token){
     });
 }
 //// put item
-function putAPI1(callback, token){
+function putAPI1(callback, item, token){
 
-    var redirsint = parseFloat(putredirs);
-    var options = {
+    let redirsint = parseFloat(item['putredirs']);
+    let options = {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer '+ token,
       },
       json : {
-          'url': puturl,
-          'shorturl' : shorturl,
+          'url': item['puturl'],
+          'shorturl' : item['shorturl'],
           'redirs' : redirsint,
           'active' : 1,
       },
 
     };
 
-    var url = apiurl + '/links/' + shorturl;
+    var url = apiurl + '/links/' + item['shorturl'];
 
     console.log('http api put call=',url,'data=', options.json);
 
     request(url, options, function(error, response, body) {
-        // субфукция получает респонз асинхронно
-        if (error) {
-            callback(error)
-        };
-
-        if (!error ){
-            callback(body)
-        };
+        callback(response,body)
     });
 }
 ///  post item
@@ -486,7 +479,7 @@ app.get('/list', function(req, res) {
 });
 //// list update
 app.get('/listupd', (req, res) => {
-
+    let user = {}
     if (!req.session.key) {
         res.render('page/unathorized', {user: user});
         return;
@@ -507,6 +500,12 @@ app.get('/listupd', (req, res) => {
                 console.log("mc=", mc);
                 res.render('page/unathorized', {user: user});
                 return;
+            }
+
+            user = {
+                'role':req.session.key['role'],
+                'balance':req.session.key['balance'],
+                'name':req.session.key['name']
             }
 
             if (mc.data === null) {
@@ -549,6 +548,7 @@ app.get('/login', (req, res) => {
 });
 //// user register  form
 app.get('/register', (req, res) => {
+    let user = {}
     res.render('page/register', {title : 'Register new user', user: user,});
 });
 //// pressed check link button form (from list)
@@ -782,7 +782,7 @@ app.post('/add', (req, res) => {
 });
 //// edit link post handler button click
 app.post('/edit', (req, res) => {
-
+    let user = {}
     if (!req.session.key) {
         res.render('page/unathorized', {user: user});
         return;
@@ -791,15 +791,22 @@ app.post('/edit', (req, res) => {
     const click = {clickTime: new Date()};
     console.log(`put ${click.clickTime}`, req.body);
     // get back params from form
-    shorturl = req.body.shorturl;
-    puturl = req.body.url;
-    putredirs = req.body.redirs;
-
-    putAPI1(function(res1 /* update link*/) {
-         console.log('api res',res1);
+    let item = {
+        shorturl : req.body.shorturl,
+        puturl : req.body.url,
+        putredirs : req.body.redirs,
+    }
+    putAPI1(function(resp, body /* update link*/) {
+        console.log('api res',resp.statusCode);
+        if (resp.statusCode != 200) {
+            console.log('error: ', body);
+            res.render('page/unathorized', {user: user});
+            return;
+        }
          console.log('click put accepted');// go to list page after link update
+        console.log('result', body);
          res.redirect('/list');
-    }, req.session.key['token']);
+    }, item, req.session.key['token']);
 
 });
 //// login form post reply
@@ -822,6 +829,7 @@ app.post('/login', (req, res) => {
 
         if (resp.statusCode !== 200) {
             //not successful
+            console.log('error: ', body)
             res.render('page/unathorized', {user: user});
             return;
         }
@@ -892,13 +900,12 @@ app.post('/delete', (req, res) => {
             res.render('page/unathorized', {user: user});
             return;
         }
-
+        console.log('statusCode ', resp.statusCode);
         if (resp.statusCode != 200) {
-            console.log('statusCode ', resp.statusCode);
+            console.log('error: ', body);
             res.render('page/unathorized', {user: user});
             return;
         }
-
         res.redirect('/list')
 
     },shorturl, req.session.key['token']);

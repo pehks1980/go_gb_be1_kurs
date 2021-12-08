@@ -104,14 +104,8 @@ func (w Worker) ProcessQ(ctx context.Context, s *ServiceWb) {
 				log.Printf("worker %d put data for uid = %s from cache to repo successfully\n", w.id, job.uid)
 
 				//remove item from cache once done with repo
-				if s.cacheWb.Exists(ctx, cachekey) {
-					err := s.cacheWb.Delete(ctx, cachekey)
-					if err != nil {
-						log.Printf("service/flushcache: del cache err: %v", err)
-						break
-					}
-					log.Printf("cache of PUT for %s is deleted", job.uid)
-				}
+				s.flushCache(ctx, cachekey)
+
 			}
 
 			log.Printf("task = %v finished by %d worker\n", job.Name, w.id)

@@ -124,33 +124,20 @@ func (s *ServiceWb) Put(ctx context.Context, uid, key string, value model.DataEl
 	//make worker put value from cache to database acync
 	s.qbroker.ProduceWr(ctx, uid, key, su)
 	log.Printf("soon will put data to repo...by some worker (executed ProduceWr) uid=%s ", uid)
-	//flush cache for List as well
-	s.flushcacheList(ctx, uid)
+	key = fmt.Sprintf("uid_LIST:%s", uid)
+	s.flushCache(ctx, key)
+	s.flushCache(ctx, "uid_GETALL:")
 	return nil
 }
 
-// flushcacheList - when db updated flush cache row related to it
-func (s *ServiceWb) flushcacheList(ctx context.Context, uid string) {
-	key := fmt.Sprintf("uid_LIST:%s", uid)
+// flushCache - when db updated flush cache with key uid_LIST or uid_GETALL as key
+func (s *ServiceWb) flushCache(ctx context.Context, key string) {
 	if s.cacheWb.Exists(ctx, key) {
 		err := s.cacheWb.Delete(ctx, key)
 		if err != nil {
 			log.Printf("service/flushcache: del cache err: %v", err)
 		}
-		log.Printf("cache of List for %s is deleted", uid)
-	}
-	s.flushcacheGetAll(ctx, uid)
-}
-
-// flushcacheGetAll - when db updated flush cache row related to it
-func (s *ServiceWb) flushcacheGetAll(ctx context.Context, uid string) {
-	key := fmt.Sprintf("uid_GETALL:")
-	if s.cacheWb.Exists(ctx, key) {
-		err := s.cacheWb.Delete(ctx, key)
-		if err != nil {
-			log.Printf("service/flushcache: del cache err: %v", err)
-		}
-		log.Printf("cache of GetAll for %s is deleted", uid)
+		log.Printf("cache for key %s is deleted", key)
 	}
 }
 
@@ -161,7 +148,10 @@ func (s *ServiceWb) Del(ctx context.Context, uid, key string, su bool) (string, 
 		log.Printf("service/Del: del repo err: %v", err)
 		return "", err
 	}
-	s.flushcacheList(ctx, uid)
+	//flush List key
+	key = fmt.Sprintf("uid_LIST:%s", uid)
+	s.flushCache(ctx, key)
+	s.flushCache(ctx, "uid_GETALL:")
 	return "", nil
 }
 
@@ -188,7 +178,7 @@ func (s *ServiceWb) List(ctx context.Context, uid string) ([]string, error) {
 	// err is error from worker gorutine
 	log.Printf("items for %s cannot work with cache/repo: err: %v", uid, err)
 
-	return nil, err2
+	return nil, err
 }
 
 //GetAll - get all links in db (only in pg mode)
@@ -240,7 +230,8 @@ func (s *ServiceWb) GetUn(ctx context.Context, shortlink string) (string, error)
 		log.Printf("service/GetUn: from repo err: %v", err)
 		return "", err
 	}
-	s.flushcacheGetAll(ctx, "dummy")
+	//will remove only cache for uid_GETALL:
+	s.flushCache(ctx, "uid_GETALL:")
 	return value, nil
 }
 

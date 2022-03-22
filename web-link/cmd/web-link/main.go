@@ -22,7 +22,7 @@ import (
 	_ "go.uber.org/zap"
 
 	jaegerlog "github.com/uber/jaeger-client-go/log"
-	// репозиторий (хранилище) 1 файло 2 память 3 pg sql(db)
+	// репозиторий (хранилище)  файло json or pg sql(db)
 )
 
 // главная петля
@@ -99,16 +99,12 @@ func main() {
 	// init selected repo interface (file or pg)
 	repoif = repoif.New(ctx, *storageName, jTracer)
 	defer repoif.CloseConn()
-	// init service interface which works as shim between selected repo and http handlers
+	// init cache service interface which works as shim between selected repo and http handlers
 	// service interface provides redis cache feature
-	//linkSVC = service.New(repoif)
-	linkSVC = service.NewWb(repoif)
-	//repoif = new(repository.MemRepo)
-
-	// repoif <-> linkSVC
-
-	// создание сервера с таким портом, и обработчиком интерфейс которого связывается а файлохранилищем
-	// т.к. инициализация происходит (RegisterPublicHTTP)- в интерфейс endpoint подается структура из file.go
+	//linkSVC = service.New(repoif) //cache aside
+	linkSVC = service.NewWb(repoif) //cache aside + cache write back with async workers
+	// такая схема получается
+	// DB(file) repoif <-> cache service (service/servicewb) linkSVC <-> API (endpoint) <-> http:8080
 
 	// Prometheus init //////////////////////////////////
 	// создаем структуру-интерфейс для прометиуса, включающую 2 обьекта cчетчик и гистограммка
@@ -136,6 +132,8 @@ func main() {
 	sig := <-interrupt
 
 	log.Printf("Sig: %v, stopping app", sig)
+
+	linkSVC.CloseConn()
 	// шат даун по контексту с тайм аутом
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(*shutdownTimeout)*time.Second)
 	defer cancel()

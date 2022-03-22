@@ -110,7 +110,7 @@ func (w Worker) ProcessQ(ctx context.Context, s *ServiceWb) {
 
 			log.Printf("task = %v finished by %d worker\n", job.Name, w.id)
 
-		case <-s.ctx.Done():
+		case <-ctx.Done():
 			w.wg.Done()
 			log.Printf("worker id = %d finished.", w.id)
 			return

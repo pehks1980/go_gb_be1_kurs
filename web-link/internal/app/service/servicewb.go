@@ -237,6 +237,8 @@ func (s *ServiceWb) GetUn(ctx context.Context, shortlink string) (string, error)
 
 // CloseConn - stub method
 func (s *ServiceWb) CloseConn() {
+	s.cancelFunc()
+	close(s.Qin)
 }
 
 //PutUser - register new or update user

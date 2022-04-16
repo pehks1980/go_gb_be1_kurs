@@ -12,8 +12,8 @@ ADD . /web-link
 WORKDIR /web-link
 #do things under unpriveleged 'user'
 RUN useradd -u 10001 user
-# Собираем бинарный файл
-RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 \
+# Собираем бинарный файл GOARCH=arm64 pi | amd64 x86
+RUN GOOS=linux GOARCH=arm64 CGO_ENABLED=0 \
    go build -o /main ./cmd/web-link
 
 RUN chown user /main
@@ -39,3 +39,6 @@ CMD ["/myappdir/main"]
 # docker run -p 8000:8000 web-link
 # docker ps
 # exec -it c1a013d02149 /bin/bash
+#
+# build image for raspberry pi arm64:
+# docker buildx build --platform linux/arm64 -t web-link:arm64 .

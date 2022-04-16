@@ -3,7 +3,8 @@
 var tokenPayload = ''
 
 // select api address
-const apiurl = 'http://127.0.0.1:8000'; //local
+//const apiurl = 'http://127.0.0.1:8000'; //local
+const apiurl = 'http://192.168.1.204:8000'; //local
 //const apiurl = 'https://web-link19801.herokuapp.com'; // heroku
 // nodejs (this) server address:port
 const nodejsurl = 'http://127.0.0.1:8090';
@@ -328,6 +329,22 @@ function getShortOpenAPI(callback, token) {
         callback(response,body)
     });
 }
+/// check current session middleware
+function checkcursess(session){
+    let user = {}
+    if (!session) {
+        // no token
+        console.log("no token/session for user=",user)
+        return {user:user, cursess:true}
+    }
+
+    user['name'] = session.key['name']
+    user['role'] = session.key['role']
+    user['balance'] = session.key['balance']
+
+    return {user:user, cursess:true}
+}
+
 //// get handlers
 
 //// index page
@@ -376,18 +393,21 @@ app.get('/', function(req, res) {
         }, req.session.key['uid'], req.session.key['token']);
 
 });
+
 //// admin page
 app.get('/admin', function(req, res) {
+
     let user = {}
     if (!req.session.key) {
         // no token
-        res.render('page/unathorized', {user: null});
+        res.render('page/unathorized', {user: user});
         return;
     }
 
     user['name'] = req.session.key['name']
     user['role'] = req.session.key['role']
     user['balance'] = req.session.key['balance']
+
     console.log("user=",user)
 
     getAllUsersAPI(
@@ -419,15 +439,10 @@ app.get('/admin', function(req, res) {
 //// list items page
 app.get('/list', function(req, res) {
 
-        if (!req.session.key) {
-            res.render('page/unathorized', {user: null});
+        let {user, cursess} = checkcursess(req.session)
+        if (cursess == false) {
+            res.render('page/unathorized', {user: user});
             return;
-        }
-
-        let user = {
-            'role':req.session.key['role'],
-            'balance':req.session.key['balance'],
-            'name':req.session.key['name']
         }
 
         getItemsListAPI(
@@ -479,12 +494,24 @@ app.get('/list', function(req, res) {
 });
 //// list update
 app.get('/listupd', (req, res) => {
+/*
     let user = {}
     if (!req.session.key) {
         res.render('page/unathorized', {user: user});
         return;
     }
 
+    user = {
+        'role':req.session.key['role'],
+        'balance':req.session.key['balance'],
+        'name':req.session.key['name']
+    }
+*/
+    let {user, cursess} = checkcursess(req.session)
+    if (cursess == false) {
+        res.render('page/unathorized', {user: user});
+        return;
+    }
     getItemsListAPI(
         function(resp, mc) {
 
@@ -502,12 +529,6 @@ app.get('/listupd', (req, res) => {
                 return;
             }
 
-            user = {
-                'role':req.session.key['role'],
-                'balance':req.session.key['balance'],
-                'name':req.session.key['name']
-            }
-
             if (mc.data === null) {
                 // empty list
                 result = {"table": ""};
@@ -521,7 +542,7 @@ app.get('/listupd', (req, res) => {
                 let res = x.datetime.split(".");
                 let res1 = res[0].split("T");
                 x.datetime = res1[1] + ' ' + res1[0];
-                console.log(x.datetime);
+                //console.log(x.datetime);
             }
 
             ejs.renderFile('views/part/table.ejs', {mc: mc.data, api: apiurl}, {}, function (err, str) {
@@ -554,13 +575,14 @@ app.get('/register', (req, res) => {
 //// pressed check link button form (from list)
 app.get('/check', (req, res) => {
 
-    if (!req.session.key) {
+    let {user, cursess} = checkcursess(req.session)
+    if (cursess == false) {
         res.render('page/unathorized', {user: user});
         return;
     }
 
     shorturl = req.query.shorturl
-    console.log(`check open link ${shorturl}`);
+    console.log(`user: ${user.name} check open link: ${shorturl}`);
 
     getShortOpenAPI(
         function (resp, mc) {
@@ -588,8 +610,9 @@ app.get('/check', (req, res) => {
 });
 //// pressed edit link button form (from list)
 app.get('/edit', (req, res) => {
-    let user = {}
-    if (!req.session.key) {
+
+    let {user, cursess} = checkcursess(req.session)
+    if (cursess == false) {
         res.render('page/unathorized', {user: user});
         return;
     }
@@ -623,12 +646,19 @@ app.get('/edit', (req, res) => {
 });
 //// add new link form
 app.get('/add', (req, res) => {
-    res.render('page/add', {title : 'add new link', user: null,});
+
+    let {user, cursess} = checkcursess(req.session)
+    if (cursess == false) {
+        res.render('page/unathorized', {user: user});
+        return;
+    }
+    res.render('page/add', {title : 'add new link', user: user,});
 });
 //// pressed edit link button form (from list)
 app.get('/upduser', (req, res) => {
-    let user = {}
-    if (!req.session.key) {
+
+    let {user, cursess} = checkcursess(req.session)
+    if (cursess == false) {
         res.render('page/unathorized', {user: user});
         return;
     }
@@ -667,7 +697,8 @@ app.get('/upduser', (req, res) => {
 //// user delete item post button click
 app.post('/deluser', (req, res) => {
 
-    if (!req.session.key) {
+    let {user, cursess} = checkcursess(req.session)
+    if (cursess == false) {
         res.render('page/unathorized', {user: user});
         return;
     }
@@ -680,7 +711,7 @@ app.post('/deluser', (req, res) => {
     delUserAPI(function(resp,body /* api del call*/) {
         console.log('api user delete resp=', resp.statusCode, 'body=',body);
 
-        if (resp == undefined){
+        if (resp === undefined){
             res.render('page/unathorized', {user: user});
             return;
         }
@@ -698,8 +729,9 @@ app.post('/deluser', (req, res) => {
 });
 //// edit user post handler button click
 app.post('/upduser', (req, res) => {
-    let user = {}
-    if (!req.session.key) {
+
+    let {user, cursess} = checkcursess(req.session)
+    if (cursess == false) {
         res.render('page/unathorized', {user: user});
         return;
     }
@@ -708,10 +740,10 @@ app.post('/upduser', (req, res) => {
     console.log(`put ${click.clickTime}`, req.body);
 
     // get back params from form
-    user = {
-        name:    req.body.name,
-        email:   req.body.email,
-        role:    req.body.role,
+    let userupd = {
+        name: req.body.name,
+        email: req.body.email,
+        role: req.body.role,
         balance: req.body.balance,
     }
     let uid = req.body.uid
@@ -733,21 +765,17 @@ app.post('/upduser', (req, res) => {
         console.log('api res',resp.statusCode, body);
 
         res.redirect('/admin');
-    },user,uid, req.session.key['token']);
+    },userupd,uid, req.session.key['token']);
 
 });
 //// add new link post form
 app.post('/add', (req, res) => {
 
-    let user = {}
-    if (!req.session.key) {
+    let {user, cursess} = checkcursess(req.session)
+    if (cursess == false) {
         res.render('page/unathorized', {user: user});
         return;
     }
-
-    user['name'] = req.session.key['name']
-    user['role'] = req.session.key['role']
-    user['balance'] = req.session.key['balance']
 
     const click = {clickTime: new Date()};
     console.log(`create ${click.clickTime}`, req.body);
@@ -782,8 +810,9 @@ app.post('/add', (req, res) => {
 });
 //// edit link post handler button click
 app.post('/edit', (req, res) => {
-    let user = {}
-    if (!req.session.key) {
+
+    let {user, cursess} = checkcursess(req.session)
+    if (cursess == false) {
         res.render('page/unathorized', {user: user});
         return;
     }
@@ -883,8 +912,8 @@ app.post('/register', (req, res) => {
 //// delete item post button click
 app.post('/delete', (req, res) => {
 
-    let user = {}
-    if (!req.session.key) {
+    let {user, cursess} = checkcursess(req.session)
+    if (cursess == false) {
         res.render('page/unathorized', {user: user});
         return;
     }
@@ -916,7 +945,7 @@ app.post('/delete', (req, res) => {
 /*
 var apm = require('elastic-apm-node').start({
     serviceName: 'weblinknodeserver',
-    serverUrl: 'http://localhost:8200',
+    serverUrl: 'http://192.168.1.204:8200',
     debug: 'true',
 })
 */

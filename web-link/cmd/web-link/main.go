@@ -72,7 +72,7 @@ func main() {
 			Param: 1,
 		},
 		Reporter: &config.ReporterConfig{
-			LocalAgentHostPort: "127.0.0.1:6831",
+			LocalAgentHostPort: "192.168.1.204:6831",
 			LogSpans:           true,
 		},
 	}

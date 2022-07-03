@@ -43,40 +43,68 @@ type linkSvc interface {
 	GetAllUsers() (model.Users, error)
 }
 
+type Appsvc struct {
+	linkSVC repository.RepoIf
+	Prometh PromIf
+	jTracer opentracing.Tracer
+}
+
+func NewAppsvc(linkSVC repository.RepoIf, Prometh PromIf, jTracer opentracing.Tracer) *Appsvc {
+	return &Appsvc{
+		linkSVC,
+		Prometh,
+		jTracer,
+	}
+}
+
 // RegisterPublicHTTP - регистрация роутинга путей типа urls.py для обработки сервером
-func RegisterPublicHTTP(linkSvc linkSvc, linkProm PromIf, linkTracer opentracing.Tracer) *mux.Router {
+func RegisterPublicHTTP(appsvc *Appsvc) *mux.Router {
 	r := mux.NewRouter()
 	// JWT authorization
-	r.HandleFunc("/user/auth", postAuth(linkSvc, linkProm, linkTracer)).Methods(http.MethodPost)
-	r.HandleFunc("/token/refresh", postTokenRefresh(linkSvc)).Methods(http.MethodPost)
-	r.HandleFunc("/user/register", postRegister(linkSvc)).Methods(http.MethodPost)
+	r.HandleFunc("/user/auth", postAuth(appsvc.linkSVC, appsvc.Prometh, appsvc.jTracer)).Methods(http.MethodPost)
+	r.HandleFunc("/token/refresh", postTokenRefresh(appsvc.linkSVC)).Methods(http.MethodPost)
+	r.HandleFunc("/user/register", postRegister(appsvc.linkSVC)).Methods(http.MethodPost)
 	// user api (works only with pg interface)
-	r.HandleFunc("/users/all", getAllUserData(linkSvc)).Methods(http.MethodGet)
-	r.HandleFunc("/user/", getUserData(linkSvc)).Methods(http.MethodGet)
-	r.HandleFunc("/user/{uid}", getUserData(linkSvc)).Methods(http.MethodGet)
+	r.HandleFunc("/users/all", getAllUserData(appsvc.linkSVC)).Methods(http.MethodGet)
+	r.HandleFunc("/user/", getUserData(appsvc.linkSVC)).Methods(http.MethodGet)
+	r.HandleFunc("/user/{uid}", getUserData(appsvc.linkSVC)).Methods(http.MethodGet)
 
-	r.HandleFunc("/user/{uid}", putUserData(linkSvc)).Methods(http.MethodPut)
-	r.HandleFunc("/user/{uid}", delUserData(linkSvc)).Methods(http.MethodDelete)
+	r.HandleFunc("/user/{uid}", putUserData(appsvc.linkSVC)).Methods(http.MethodPut)
+	r.HandleFunc("/user/{uid}", delUserData(appsvc.linkSVC)).Methods(http.MethodDelete)
 
 	// Main function shortlinks api
-	r.HandleFunc("/shortopen/{shortlink}", getShortOpen(linkSvc, linkTracer)).Methods(http.MethodGet)
-	r.HandleFunc("/shortstat/{shortlink}", getShortStat(linkSvc, linkTracer)).Methods(http.MethodGet)
+	r.HandleFunc("/shortopen/{shortlink}", getShortOpen(appsvc.linkSVC, appsvc.jTracer)).Methods(http.MethodGet)
+	r.HandleFunc("/shortstat/{shortlink}", getShortStat(appsvc.linkSVC, appsvc.jTracer)).Methods(http.MethodGet)
 	// Links crud
-	r.HandleFunc("/links", postToLink(linkSvc, linkTracer)).Methods(http.MethodPost)
-	r.HandleFunc("/links/all", getFromLink(linkSvc, linkTracer)).Methods(http.MethodGet)
-	r.HandleFunc("/links/{shortlink}", putToLink(linkSvc, linkTracer)).Methods(http.MethodPut)
-	r.HandleFunc("/links/{shortlink}", delFromLink(linkSvc, linkTracer)).Methods(http.MethodDelete)
+	r.HandleFunc("/links", postToLink(appsvc.linkSVC, appsvc.jTracer)).Methods(http.MethodPost)
+	r.HandleFunc("/links/all", getFromLink(appsvc.linkSVC, appsvc.jTracer)).Methods(http.MethodGet)
+	r.HandleFunc("/links/{shortlink}", putToLink(appsvc.linkSVC, appsvc.jTracer)).Methods(http.MethodPut)
+	r.HandleFunc("/links/{shortlink}", delFromLink(appsvc.linkSVC, appsvc.jTracer)).Methods(http.MethodDelete)
 
 	// Prometheus metrics url path
 	r.Handle("/metrics", promhttp.Handler())
+	// kube heartbeat handler
+	r.HandleFunc("/__heartbeat__", getHeartBeat(appsvc)).Methods(http.MethodGet)
 
 	// MiddleWare first goes JWT second goes Logging
 	r.Use(JWTCheckMiddleware)
 	// Logging MiddleWare
 	r.Use(LoggingMiddleware)
 	// Prometheus Middleware
-	r.Use(PromMiddlewareFunc(linkProm))
+	r.Use(PromMiddlewareFunc(appsvc.Prometh))
 	return r
+}
+
+// getHeartBeat - kube heartbeat thing
+// appsvc - services of app -
+// 1 backend (TO-RIGHT) chain of interfaces (file/db/cache)
+// 2 promif counters (If)
+// 3 jtracer thing
+func getHeartBeat(appsvc *Appsvc) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, request *http.Request) {
+		log.Printf("__heartbeat__ OK")
+		w.WriteHeader(http.StatusOK)
+	}
 }
 
 // delUserData - del user from admin (by suid)

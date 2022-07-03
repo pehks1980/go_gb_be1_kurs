@@ -40,5 +40,15 @@ CMD ["/myappdir/main"]
 # docker ps
 # exec -it c1a013d02149 /bin/bash
 #
-# build image for raspberry pi arm64:
+# build image for raspberry pi arm64: (cross to arm)
 # docker buildx build --platform linux/arm64 -t web-link:arm64 .
+# copy docker image  to raspberry system:
+# save it in tar archive
+# docker save web-link:arm64  > weblink-arm64.tar
+# copy to pi via scp
+# scp weblink-arm64.tar user@192.168.1.210:/home/user
+# unpack tar to local image docker repo (on pi side)
+# docker load -i weblink-arm64.tar
+# check & run
+# docker image ls | grep arm
+# docker run -p 8000:8000 web-link:arm64

@@ -1,4 +1,6 @@
-FROM node:14.5.0-alpine
+FROM node:alpine
+#PI
+#FROM hypriot/rpi-node:latest
 # Create app directory
 WORKDIR /app
 # Install app dependencies
@@ -11,9 +13,14 @@ RUN npm install
 # Bundle app source
 COPY . /app
 
-EXPOSE 8090
+EXPOSE 8090 8080
 CMD [ "node", "server.js" ]
 
 # docker build -t nodejs .
-# docker run -p 8090:8090 nodejs
+#
+# build image for raspberry pi arm64:
+# docker buildx build --platform linux/arm64 -t nodejs:arm64 .
+#
+# docker run -p 8080-8090:8080-8090 nodejs
+# docker run -it -p 8080-8090:8080-8090/tcp -network host nodejs
 # image строится но при запуске все зависает...

@@ -1,16 +1,32 @@
+// запускаем apm agent
+//1. npm install elastic-apm-node --save
+const apm = require('elastic-apm-node').start({
+    serviceName: 'weblinknodeserver111',
+    serverUrl: 'http://192.168.1.210:8200',
+    debug: 'true',
+});
+
+
+
 //// local data 'storage'
 //var token = '';
 var tokenPayload = ''
 
 // select api address
 //const apiurl = 'http://127.0.0.1:8000'; //local
-const apiurl = 'http://192.168.1.204:8000'; //local
+const apiurl = 'http://192.168.1.204:8000'; //204
+//const apiurl = 'http://192.168.1.210:8000'; //204
 //const apiurl = 'https://web-link19801.herokuapp.com'; // heroku
 // nodejs (this) server address:port
-const nodejsurl = 'http://127.0.0.1:8090';
+//const nodejsurl = 'http://127.0.0.1:8090';
+
+const nodejsurl = 'http://192.168.1.13:8090';
 // must be the same as nodejsurl -):
-const srvIP = '127.0.0.1';
+//const srvIP = '127.0.0.1';
+//const srvPort = '8090';
+const srvIP = '0.0.0.0';
 const srvPort = '8090';
+
 function jwtdecode(token) {
     let decoded = jwt_decode(token);
     console.log('token payload= ',decoded);
@@ -42,6 +58,39 @@ app.use(express.static('./views'));
 // allow latest json app use
 app.use(express.json());
 //post form data parser
+
+// body reader middleware
+app.use(function (req, res, next) {
+    if (req.method !== 'POST' && req.method !== 'PUT') {
+        return next()
+    }
+
+    // `startSpan` will only return a span if there's an
+    // active transaction
+    var span = apm.startSpan('receiving body')
+
+    next()
+        // end the span after we're done loading data from the
+        // client
+    if (span) span.end()
+
+})
+
+// JSON parser middleware
+app.use(function (req, res, next) {
+    if (req.headers['content-type'] !== 'application/json') {
+        return next()
+    }
+
+    // start a span to measure the time it takes to parse
+    // the JSON
+    var span = apm.startSpan('parse json')
+
+    next()
+    // when we've processed the json, stop the custom span
+    if (span) span.end()
+})
+
 const bodyParser = require('body-parser');
 const jwt_decode = require('jwt-decode');
 
@@ -332,12 +381,12 @@ function getShortOpenAPI(callback, token) {
 /// check current session middleware
 function checkcursess(session){
     let user = {}
-    if (!session) {
+    if (!session.key) {
         // no token
         console.log("no token/session for user=",user)
-        return {user:user, cursess:true}
+        return {user:user, cursess:false}
     }
-
+    console.log("sess = ",session)
     user['name'] = session.key['name']
     user['role'] = session.key['role']
     user['balance'] = session.key['balance']
@@ -941,14 +990,8 @@ app.post('/delete', (req, res) => {
 
 });
 
-// запускаем apm agent
-/*
-var apm = require('elastic-apm-node').start({
-    serviceName: 'weblinknodeserver',
-    serverUrl: 'http://192.168.1.204:8200',
-    debug: 'true',
-})
-*/
+
+
 
 //// start node server.js
 app.listen(srvPort,srvIP);

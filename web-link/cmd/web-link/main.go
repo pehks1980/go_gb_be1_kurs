@@ -113,9 +113,12 @@ func main() {
 	promif = new(endpoint.Prom)
 	Prometh = promif.New()
 
+	//init our appsvc struct
+	appsvc := endpoint.NewAppsvc(linkSVC, Prometh, jTracer)
+
 	serv := http.Server{
 		Addr:    net.JoinHostPort("", port),
-		Handler: endpoint.RegisterPublicHTTP(linkSVC, Prometh, jTracer),
+		Handler: endpoint.RegisterPublicHTTP(appsvc),
 	}
 	// запуск сервера
 	go func() {

@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-link-arm64-srv
+spec:
+  type: NodePort
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+  selector:
+    app: web-link-arm64
+
+#kubectl apply -f service.yml
+#kubectl get service
+#patch to set external ip
+#kubectl patch svc web-link-arm64-srv -p '{"spec":{"externalIPs":["192.168.1.210"]}}'
+#minikube service web-link-arm64-srv --url - dont work on mikrok8s
+#  kubectl get svc
+#  NAME                 TYPE        CLUSTER-IP       EXTERNAL-IP     PORT(S)          AGE
+#  kubernetes           ClusterIP   10.152.183.1     <none>          443/TCP          20h
+#  web-link-arm64-srv   NodePort    10.152.183.116   192.168.1.210   8000:32448/TCP   69m

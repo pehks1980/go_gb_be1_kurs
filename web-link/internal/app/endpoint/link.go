@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"time"
 
+	tracerlog "github.com/opentracing/opentracing-go/log"
+
 	"github.com/opentracing/opentracing-go"
 
 	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/pkg/repository"
@@ -366,6 +368,9 @@ func postAuth(svc linkSvc, prom PromIf, tracer opentracing.Tracer) func(http.Res
 				return
 			}
 			log.Printf("USER %s Logged in.\n", jsonPostUser.Name)
+			span.LogFields(
+				tracerlog.String("USER Got Auth Token", jsonPostUser.Name),
+			)
 			tokenAccess, _ := GenJWTWithClaims(UID, 0)
 			tokenRefresh, _ := GenJWTWithClaims(UID, 1)
 

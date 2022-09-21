@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 
 	"log"
@@ -348,6 +349,9 @@ func (pgr *PgRepo) Get(ctx context.Context, uid, key string, su bool) (model.Dat
 // checking if uid/suid is eligible is done at API handler level
 func (pgr *PgRepo) Put(ctx context.Context, uid, key string, value model.DataEl, su bool) error {
 
+	span, ctx := opentracing.StartSpanFromContextWithTracer(ctx, pgr.Tracer, "pg_repo.PUT")
+	defer span.Finish()
+
 	grPut := func(ctx context.Context, dbpool *pgxpool.Pool, uid, key string, userdata *UserData) error {
 		const sql = `
 	INSERT INTO users_data (user_id,url,short_url,redirs,date_time,uid)
@@ -358,6 +362,12 @@ func (pgr *PgRepo) Put(ctx context.Context, uid, key string, value model.DataEl,
                           date_time = excluded.date_time,
                           uid = excluded.uid;
 	`
+		data, _ := json.Marshal(userdata)
+		span.LogFields(
+			tracerlog.String("query", sql),
+			tracerlog.String("uid", uid),
+			tracerlog.String("data", string(data)),
+		)
 		_, err := dbpool.Exec(ctx, sql,
 			uid,
 			userdata.URL,
@@ -992,11 +1002,17 @@ func (pgr *PgRepo) PayUser(ctx context.Context, uidA, uidB, amount string) error
 // GetAll get all data items (with links) from pg db sorted by date
 func (pgr *PgRepo) GetAll(ctx context.Context, uid string) (model.Data, error) {
 
-	grGetAll := func(ctx context.Context, dbpool *pgxpool.Pool) ([]UserData, error) {
+	span, ctx := opentracing.StartSpanFromContextWithTracer(ctx, pgr.Tracer, "pg_repo.GETALL")
+	defer span.Finish()
+
+	grGetAll := func(ctx context.Context, dbpool *pgxpool.Pool, span opentracing.Span) ([]UserData, error) {
 		const sql = `
 	SELECT id, user_id, url, redirs, is_active, short_url, date_time, uid FROM users_data
     	ORDER BY date_time;
 	`
+		span.LogFields(
+			tracerlog.String("query", sql),
+		)
 		rows, err := dbpool.Query(ctx, sql)
 
 		if err != nil {
@@ -1033,7 +1049,7 @@ func (pgr *PgRepo) GetAll(ctx context.Context, uid string) (model.Data, error) {
 		return usersdata, nil
 	}
 
-	usersdata, err := grGetAll(pgr.CTX, pgr.DBPool)
+	usersdata, err := grGetAll(pgr.CTX, pgr.DBPool, span)
 	if err != nil {
 		return model.Data{}, err
 	}

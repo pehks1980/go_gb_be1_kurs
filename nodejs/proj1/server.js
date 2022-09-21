@@ -13,14 +13,37 @@ const apm = require('elastic-apm-node').start({
 var tokenPayload = ''
 
 // select api address
-//const apiurl = 'http://127.0.0.1:8000'; //local
-const apiurl = 'http://192.168.1.204:8000'; //204
+const envAPIURL = process.env.APIURL;
+let apiurl = "";
+let nodejsurl = "";
+if ( envAPIURL === undefined ) {
+
+    apiurl = 'http://127.0.0.1:8000'; //local
+    console.log("APIURL is not set in ENV, so it is set to :" , apiurl)
+
+} else {
+    apiurl = envAPIURL;
+    console.log("APIURL is set AS PER ENV:" , apiurl)
+}
+
+//const apiurl = 'http://192.168.1.204:8000'; //204
 //const apiurl = 'http://192.168.1.210:8000'; //204
 //const apiurl = 'https://web-link19801.herokuapp.com'; // heroku
 // nodejs (this) server address:port
 //const nodejsurl = 'http://127.0.0.1:8090';
 
-const nodejsurl = 'http://192.168.1.13:8090';
+//select nodejs url aka export NODEJSURL="http://127.0.0.1:8090"
+const envNODEJSURL = process.env.NODEJSURL;
+if ( envNODEJSURL === undefined ) {
+
+    nodejsurl = 'http://127.0.0.1:8090'; //local
+    console.log("NODEJSURL is not set in ENV, so it is set to :" , nodejsurl)
+
+} else {
+    nodejsurl = envNODEJSURL;
+    console.log("NODEJSURL is set AS PER ENV:" , nodejsurl)
+}
+
 // must be the same as nodejsurl -):
 //const srvIP = '127.0.0.1';
 //const srvPort = '8090';
@@ -381,7 +404,7 @@ function getShortOpenAPI(callback, token) {
 /// check current session middleware
 function checkcursess(session){
     let user = {}
-    if (!session.key) {
+    if ( !("key" in session) ) {
         // no token
         console.log("no token/session for user=",user)
         return {user:user, cursess:false}
@@ -995,4 +1018,4 @@ app.post('/delete', (req, res) => {
 
 //// start node server.js
 app.listen(srvPort,srvIP);
-console.log('server node.js started http://'+ srvIP +':' + srvPort, ' (API URL:', apiurl, ')');
+console.log('server node.js started ,', nodejsurl, ' (API URL:', apiurl, ')');

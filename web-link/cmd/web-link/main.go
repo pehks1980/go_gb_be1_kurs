@@ -101,8 +101,8 @@ func main() {
 	defer repoif.CloseConn()
 	// init cache service interface which works as shim between selected repo and http handlers
 	// service interface provides redis cache feature
-	//linkSVC = service.New(repoif) //cache aside
-	linkSVC = service.NewWb(repoif) //cache aside + cache write back with async workers
+	//linkSVC = service.New(repoif, jTracer) //cache aside
+	linkSVC = service.NewWb(repoif, jTracer) //cache aside + cache write back with async workers
 	// такая схема получается
 	// DB(file) repoif <-> cache service (service/servicewb) linkSVC <-> API (endpoint) <-> http:8080
 

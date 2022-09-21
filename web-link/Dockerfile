@@ -13,6 +13,7 @@ WORKDIR /web-link
 #do things under unpriveleged 'user'
 RUN useradd -u 10001 user
 # Собираем бинарный файл GOARCH=arm64 pi | amd64 x86
+# main - это результирующий exe файл в корне билдера
 RUN GOOS=linux GOARCH=arm64 CGO_ENABLED=0 \
    go build -o /main ./cmd/web-link
 

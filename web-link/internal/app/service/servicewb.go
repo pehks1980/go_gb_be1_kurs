@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	tracerlog "github.com/opentracing/opentracing-go/log"
+
 	"log"
 	"time"
 
@@ -44,10 +46,11 @@ type ServiceWb struct {
 	qbroker    *QBroker // one cache broker - диспетчер очереди Qin - формирует Task и кладет его в Qin
 	ctx        context.Context
 	cancelFunc context.CancelFunc
+	tracer     opentracing.Tracer
 }
 
 //NewWb - конструктор ServiceWb
-func NewWb(repo cachedwbrepo) *ServiceWb {
+func NewWb(repo cachedwbrepo, tracer opentracing.Tracer) *ServiceWb {
 	// connect to redis server
 	rdb := redis.NewClient(&redis.Options{
 		Addr: "192.168.1.204:6379", Password: "", // no password set
@@ -80,6 +83,7 @@ func NewWb(repo cachedwbrepo) *ServiceWb {
 		qbroker:    qbroker,
 		ctx:        ctx,
 		cancelFunc: cancelFunc,
+		tracer:     tracer,
 	}
 
 	// start workers (to work along with the cache)
@@ -117,6 +121,9 @@ func (s *ServiceWb) Put(ctx context.Context, uid, key string, value model.DataEl
 		Value: value,
 		TTL:   time.Hour,
 	})
+	span, ctx := opentracing.StartSpanFromContextWithTracer(ctx, s.tracer, "wb.uid_PUT:")
+	defer span.Finish()
+
 	if err != nil {
 		log.Printf("items (getall) for %s cannot be put to cache: err: %v", uid, err)
 		return err
@@ -124,6 +131,9 @@ func (s *ServiceWb) Put(ctx context.Context, uid, key string, value model.DataEl
 	//make worker put value from cache to database acync
 	s.qbroker.ProduceWr(ctx, uid, key, su)
 	log.Printf("soon will put data to repo...by some worker (executed ProduceWr) uid=%s ", uid)
+	span.LogFields(
+		tracerlog.String("wb.uid_PUT: cache write behind to repo task started", uid),
+	)
 	key = fmt.Sprintf("uid_LIST:%s", uid)
 	s.flushCache(ctx, key)
 	s.flushCache(ctx, "uid_GETALL:")
@@ -162,16 +172,25 @@ func (s *ServiceWb) List(ctx context.Context, uid string) ([]string, error) {
 	key := fmt.Sprintf("uid_LIST:%s", uid)
 	var items []string
 
+	span, ctx := opentracing.StartSpanFromContextWithTracer(ctx, s.tracer, "wb.uid_LIST:")
+	defer span.Finish()
+
 	err2 := s.cacheWb.Get(ctx, key, &items)
 
 	if err2 == nil {
 		log.Printf("items for %s are from cache", uid)
+		span.LogFields(
+			tracerlog.String("items (uid_LIST) are from cache", uid),
+		)
 		return items, nil
 	}
 
 	items, err := s.qbroker.Produce(ctx, uid, key)
 	if err == nil {
 		log.Printf("getting data from repo... by some worker (executed Produce) uid=%s \n", uid)
+		span.LogFields(
+			tracerlog.String("items (uid_LIST) are absent in cache and taken from repo", uid),
+		)
 		return items, nil
 	}
 
@@ -189,10 +208,18 @@ func (s *ServiceWb) GetAll(ctx context.Context, uid string) (model.Data, error) 
 	var dbitems model.Data
 	var err1 error
 
+	span, ctx := opentracing.StartSpanFromContextWithTracer(ctx, s.tracer, "wb.uid_GETALL:")
+	defer span.Finish()
+
 	err2 := s.cacheWb.Get(ctx, key, &items)
 
 	if err2 == nil {
 		log.Printf("items (getall) for %s are from cache", uid)
+
+		span.LogFields(
+			tracerlog.String("items (uid_GETALL:) are from cache", uid),
+		)
+
 		return items, nil
 	}
 
@@ -209,15 +236,18 @@ func (s *ServiceWb) GetAll(ctx context.Context, uid string) (model.Data, error) 
 		TTL:   time.Hour,
 	})
 	if err != nil {
-		log.Printf("items (getall) for %s cannot be put to cache: err: %v", uid, err)
+		log.Printf("items (uid_GETALL:) for %s cannot be put to cache: err: %v", uid, err)
 	}
 
 	if err2 == cache.ErrCacheMiss {
-		log.Printf("items (getall) for %s are absent in cache and taken from repo", uid)
+		log.Printf("items (uid_GETALL:) for %s are absent in cache and taken from repo", uid)
+		span.LogFields(
+			tracerlog.String("items (uid_GETALL:) are absent in cache and taken from repo", uid),
+		)
 		return dbitems, nil
 	}
 
-	log.Printf("items (getall) for %s are taken from repo because cache redis has problem", uid)
+	log.Printf("items (uid_GETALL:) for %s are taken from repo because cache redis has problem", uid)
 	return dbitems, nil
 
 }

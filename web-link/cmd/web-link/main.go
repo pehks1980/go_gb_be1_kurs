@@ -27,14 +27,14 @@ import (
 
 // главная петля
 func main() {
-	log.Print("Starting the app")
+	log.Print("Starting the app...")
 	// настройка порта, настроек хранилища, таймаут при закрытии сервиса
-	portdef := flag.String("port", "8000", "Port")
+	portdef := flag.String("port", "8000", "Port. Also, it can be set as env PORT.")
 
 	storageType := flag.String("storage type", "pg", "data storage type: 'file' or 'pg'")
 
-	storageName := flag.String("storage name", "postgres://postuser:postpassword@192.168.1.204:5432/a4",
-		"pg: 'postgres://dbuser:dbpasswd@ip_address:port/dbname'  file: 'storage.json'")
+	storageNameDef := flag.String("storage name", "postgres://postuser:postpassword@192.168.1.204:5432/a4",
+		"pg: 'postgres://dbuser:dbpasswd@ip_address:port/dbname'  file: 'storage.json'. It can be also set as REPO.")
 
 	//storageName := flag.String("storage name", "storage.json",
 	//	"pg: 'postgres://dbuser:dbpasswd@ip_address:port/dbname'  file: 'storage.json'")
@@ -56,10 +56,19 @@ func main() {
 		port = &c.PORT
 	*/
 	port := os.Getenv("PORT")
-
 	if port == "" {
 		log.Printf("$PORT is not set. using default %s", *portdef)
 		port = *portdef
+	} else {
+		log.Printf("Using env $PORT = %s", port)
+	}
+
+	storageName := os.Getenv("REPO")
+	if storageName == "" {
+		log.Printf("$REPO is not set. using default %s", *storageNameDef)
+		storageName = *storageNameDef
+	} else {
+		log.Printf("Using env $REPO = %s", storageName)
 	}
 
 	// init tracer
@@ -97,7 +106,7 @@ func main() {
 		repoif = new(repository.PgRepo)
 	}
 	// init selected repo interface (file or pg)
-	repoif = repoif.New(ctx, *storageName, jTracer)
+	repoif = repoif.New(ctx, storageName, jTracer)
 	defer repoif.CloseConn()
 	// init cache service interface which works as shim between selected repo and http handlers
 	// service interface provides redis cache feature

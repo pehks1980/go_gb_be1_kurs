@@ -1,9 +1,9 @@
-FROM golang:1.16 as modules
+FROM golang:1.18 as modules
 
 ADD go.mod go.sum /m/
 RUN cd /m && go mod download
 
-FROM golang:1.16 as builder
+FROM golang:1.18 as builder
 COPY --from=modules /go/pkg /go/pkg
 RUN mkdir -p /web-link
 
@@ -53,3 +53,4 @@ CMD ["/myappdir/main"]
 # check & run
 # docker image ls | grep arm
 # docker run -p 8000:8000 web-link:arm64
+# docker run -e PORT=8000 -e REPO=postgres://postuser:postpassword@192.168.1.204:5432/a4 -p 8000:8000 web-link_10

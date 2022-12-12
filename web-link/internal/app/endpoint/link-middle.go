@@ -116,6 +116,12 @@ func JWTCheckMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
+		if r.RequestURI == "/__heartbeat__" {
+			//bypass jwt check when access prom metrics
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		checkif := 1 // db case svc.WhoAmI()
 		if checkif == 0 {
 			// bypass middle ware token logic in old version using file storage

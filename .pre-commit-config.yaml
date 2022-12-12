@@ -10,7 +10,7 @@ repos:
     hooks:
     -   id: go-fmt-import
     #-   id: go-vet
-    -   id: go-lint
+    #-   id: go-lint
     #- id: go-unit-tests
     #- id: gofumpt # requires github.com/mvdan/gofumpt
     #- id: go-err-check # requires github.com/kisielk/errcheck

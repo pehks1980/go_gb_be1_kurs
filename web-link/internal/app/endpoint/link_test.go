@@ -67,8 +67,10 @@ func TestHandler(t *testing.T) {
 
 	// вызов метода интерфейса - инициализация конфигa
 	linkSVC := repoif.New(ctx, "test.json", jTracer)
+	//init our appsvc struct
+	appsvc := endpoint.NewAppsvc(linkSVC, prometh, jTracer)
 
-	handler := endpoint.RegisterPublicHTTP(linkSVC, prometh, jTracer)
+	handler := endpoint.RegisterPublicHTTP(appsvc)
 
 	// auth test /////////////////////////////////////////////////////////////////////////////////////
 	// setup test request

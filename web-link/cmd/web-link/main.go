@@ -11,6 +11,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/app/service"
+
 	_ "github.com/pehks1980/go_gb_be1_kurs/web-link/internal/app/config"
 	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/app/endpoint"
 	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/pkg/repository"
@@ -20,19 +22,19 @@ import (
 	_ "go.uber.org/zap"
 
 	jaegerlog "github.com/uber/jaeger-client-go/log"
-	// репозиторий (хранилище) 1 файло 2 память 3 pg sql(db)
+	// репозиторий (хранилище)  файло json or pg sql(db)
 )
 
 // главная петля
 func main() {
-	log.Print("Starting the app")
+	log.Print("Starting the app...")
 	// настройка порта, настроек хранилища, таймаут при закрытии сервиса
-	portdef := flag.String("port", "8000", "Port")
+	portdef := flag.String("port", "8000", "Port. Also, it can be set as env PORT.")
 
 	storageType := flag.String("storage type", "pg", "data storage type: 'file' or 'pg'")
 
-	storageName := flag.String("storage name", "postgres://postuser:postpassword@192.168.1.204:5432/a4",
-		"pg: 'postgres://dbuser:dbpasswd@ip_address:port/dbname'  file: 'storage.json'")
+	storageNameDef := flag.String("storage name", "postgres://postuser:postpassword@192.168.1.204:5432/a4",
+		"pg: 'postgres://dbuser:dbpasswd@ip_address:port/dbname'  file: 'storage.json'. It can be also set as REPO.")
 
 	//storageName := flag.String("storage name", "storage.json",
 	//	"pg: 'postgres://dbuser:dbpasswd@ip_address:port/dbname'  file: 'storage.json'")
@@ -54,13 +56,20 @@ func main() {
 		port = &c.PORT
 	*/
 	port := os.Getenv("PORT")
-
 	if port == "" {
 		log.Printf("$PORT is not set. using default %s", *portdef)
 		port = *portdef
+	} else {
+		log.Printf("Using env $PORT = %s", port)
 	}
-	// инициализация файлового хранилища ук на структуру repo
-	var repoif, linkSVC repository.RepoIf
+
+	storageName := os.Getenv("REPO")
+	if storageName == "" {
+		log.Printf("$REPO is not set. using default %s", *storageNameDef)
+		storageName = *storageNameDef
+	} else {
+		log.Printf("Using env $REPO = %s", storageName)
+	}
 
 	// init tracer
 	jLogger := jaegerlog.StdLogger
@@ -72,7 +81,7 @@ func main() {
 			Param: 1,
 		},
 		Reporter: &config.ReporterConfig{
-			LocalAgentHostPort: "127.0.0.1:6831",
+			LocalAgentHostPort: "192.168.1.204:6831",
 			LogSpans:           true,
 		},
 	}
@@ -83,26 +92,28 @@ func main() {
 	}
 	// close the closer
 	defer jCloser.Close()
+
+	// инициализация файлового хранилища ук на структуру repo
+	var repoif, linkSVC repository.RepoIf
+
 	// create empty context for this app
 	ctx := context.Background()
 	// подстановка в интерфейс соотвествующего хранилища
 	if *storageType == "file" {
 		repoif = new(repository.FileRepo)
-		linkSVC = repoif.New(ctx, *storageName, jTracer)
 	}
 	if *storageType == "pg" {
 		repoif = new(repository.PgRepo)
-		linkSVC = repoif.New(ctx, *storageName, jTracer)
-		defer linkSVC.CloseConn()
-
 	}
-
-	//repoif = new(repository.MemRepo)
-
-	// repoif <-> linkSVC
-
-	// создание сервера с таким портом, и обработчиком интерфейс которого связывается а файлохранилищем
-	// т.к. инициализация происходит (RegisterPublicHTTP)- в интерфейс endpoint подается структура из file.go
+	// init selected repo interface (file or pg)
+	repoif = repoif.New(ctx, storageName, jTracer)
+	defer repoif.CloseConn()
+	// init cache service interface which works as shim between selected repo and http handlers
+	// service interface provides redis cache feature
+	//linkSVC = service.New(repoif, jTracer) //cache aside
+	linkSVC = service.NewWb(repoif, jTracer) //cache aside + cache write back with async workers
+	// такая схема получается
+	// DB(file) repoif <-> cache service (service/servicewb) linkSVC <-> API (endpoint) <-> http:8080
 
 	// Prometheus init //////////////////////////////////
 	// создаем структуру-интерфейс для прометиуса, включающую 2 обьекта cчетчик и гистограммка
@@ -111,9 +122,12 @@ func main() {
 	promif = new(endpoint.Prom)
 	Prometh = promif.New()
 
+	//init our appsvc struct
+	appsvc := endpoint.NewAppsvc(linkSVC, Prometh, jTracer)
+
 	serv := http.Server{
 		Addr:    net.JoinHostPort("", port),
-		Handler: endpoint.RegisterPublicHTTP(linkSVC, Prometh, jTracer),
+		Handler: endpoint.RegisterPublicHTTP(appsvc),
 	}
 	// запуск сервера
 	go func() {
@@ -130,6 +144,8 @@ func main() {
 	sig := <-interrupt
 
 	log.Printf("Sig: %v, stopping app", sig)
+
+	linkSVC.CloseConn()
 	// шат даун по контексту с тайм аутом
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(*shutdownTimeout)*time.Second)
 	defer cancel()

@@ -10,14 +10,15 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/opentracing/opentracing-go"
+	//"github.com/opentracing/opentracing-go"
 
 	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/pkg/model"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // RepoIf - main methods for a storage (a file repo) same as linkSVC
 type RepoIf interface {
-	New(ctx context.Context, filename string, tracer opentracing.Tracer) RepoIf
+	New(ctx context.Context, filename string, tracer trace.Tracer) RepoIf
 	Get(ctx context.Context, uid, key string, su bool) (model.DataEl, error)
 	Put(ctx context.Context, uid, key string, value model.DataEl, su bool) error
 	Del(ctx context.Context, uid, key string, su bool) (string, error)
@@ -35,7 +36,7 @@ type RepoIf interface {
 	GetAllUsers() (model.Users, error)
 }
 
-//GetAllUsers - stub
+// GetAllUsers - stub
 func (fr *FileRepo) GetAllUsers() (model.Users, error) {
 	return model.Users{}, nil
 }
@@ -48,7 +49,7 @@ type FileRepo struct {
 	fileData map[string]model.DataEl
 }
 
-//AuthUser - stub
+// AuthUser - stub
 func (fr *FileRepo) AuthUser(user model.User) (string, error) {
 	return "", nil
 }
@@ -59,7 +60,7 @@ func (fr *FileRepo) WhoAmI() uint64 {
 }
 
 // New - инициализация файлостораджа
-func (fr *FileRepo) New(ctx context.Context, filename string, tracer opentracing.Tracer) RepoIf {
+func (fr *FileRepo) New(ctx context.Context, filename string, tracer trace.Tracer) RepoIf {
 	// init file repo
 	fileRepo := &FileRepo{
 		fileName: filename,

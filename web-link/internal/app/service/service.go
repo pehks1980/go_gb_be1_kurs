@@ -6,8 +6,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/opentracing/opentracing-go"
 	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/pkg/repository"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/go-redis/cache/v8"
 	"github.com/go-redis/redis/v8"
@@ -58,8 +58,8 @@ func New(repo cachedrepo) *Service {
 	}
 }
 
-//New stub method
-func (s *Service) New(ctx context.Context, filename string, tracer opentracing.Tracer) repository.RepoIf {
+// New stub method
+func (s *Service) New(ctx context.Context, filename string, tracer trace.Tracer) repository.RepoIf {
 	panic("implement me")
 }
 
@@ -157,7 +157,7 @@ func (s *Service) List(ctx context.Context, uid string) ([]string, error) {
 	return dbitems, nil
 }
 
-//GetAll - get all links in db (only in pg mode)
+// GetAll - get all links in db (only in pg mode)
 func (s *Service) GetAll(ctx context.Context, uid string) (model.Data, error) {
 
 	key := fmt.Sprintf("uid_GETALL:")
@@ -214,7 +214,7 @@ func (s *Service) GetUn(ctx context.Context, shortlink string) (string, error) {
 func (s *Service) CloseConn() {
 }
 
-//PutUser - register new or update user
+// PutUser - register new or update user
 func (s *Service) PutUser(value model.User) (string, error) {
 	val, err := s.repo.PutUser(value)
 	if err != nil {
@@ -224,7 +224,7 @@ func (s *Service) PutUser(value model.User) (string, error) {
 	return val, nil
 }
 
-//DelUser - when delete user
+// DelUser - when delete user
 func (s *Service) DelUser(uid string) error {
 	if err := s.repo.DelUser(uid); err != nil {
 		log.Printf("service/UserDel: userdel repo err: %v", err)
@@ -233,7 +233,7 @@ func (s *Service) DelUser(uid string) error {
 	return nil
 }
 
-//GetUser - when get user profile
+// GetUser - when get user profile
 func (s *Service) GetUser(uid string) (model.User, error) {
 	value, err := s.repo.GetUser(uid)
 	if err != nil {
@@ -243,12 +243,12 @@ func (s *Service) GetUser(uid string) (model.User, error) {
 	return value, nil
 }
 
-//WhoAmI - when check interface type (file or pg)
+// WhoAmI - when check interface type (file or pg)
 func (s *Service) WhoAmI() uint64 {
 	return s.repo.WhoAmI()
 }
 
-//PayUser - payment one user to another (tx)
+// PayUser - payment one user to another (tx)
 func (s *Service) PayUser(ctx context.Context, uidA, uidB, amount string) error {
 	if err := s.repo.PayUser(ctx, uidA, uidB, amount); err != nil {
 		log.Printf("service/PayUser: payuser repo err: %v", err)
@@ -257,7 +257,7 @@ func (s *Service) PayUser(ctx context.Context, uidA, uidB, amount string) error 
 	return nil
 }
 
-//FindSuperUser - find who is su (get suid)
+// FindSuperUser - find who is su (get suid)
 func (s *Service) FindSuperUser() (string, error) {
 	value, err := s.repo.FindSuperUser()
 	if err != nil {
@@ -267,7 +267,7 @@ func (s *Service) FindSuperUser() (string, error) {
 	return value, nil
 }
 
-//AuthUser - user login (only in pg mode)
+// AuthUser - user login (only in pg mode)
 func (s *Service) AuthUser(user model.User) (string, error) {
 	value, err := s.repo.AuthUser(user)
 	if err != nil {

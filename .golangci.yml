@@ -15,21 +15,18 @@ run:
   tests: false
 # Пропускать папки вендора, сторонних зависимостей и т.д.
 # vendor$, third_party$, testdata$, examples$, Godeps$, builtin$
-  skip-dirs-use-default: true
-
+  issues.exclude-dirs-use-default: true
 # список линтеров golangci-lint tool
 linters:
   disable-all: true
   enable:
-  - shadow # This replaces the deprecated `govet.check-shadowing`
   - gofmt # форматирование кода (пробелы, отступы, скобки)
   - goimports # обновление списка imports
   - govet # общий анализ возможных багов
   # - goconst # нахождение строк, которые следует вынести в константы - funlen # детектирование слишком крупных функций
   - bodyclose # проверка на незакрытые body после чтения тела ответа
   - errcheck # проверка на обработку всех ошибок
-  - deadcode # детектирование не использованного кода
-  - exportloopref # детектирование экспорта указателя на переменную внутри цикла
+  - copyloopvar # детектирование экспорта указателя на переменную внутри цикла
 # настройки отдельных линтеров
 linters-settings:
   goimports:
@@ -37,7 +34,7 @@ linters-settings:
     local-prefixes: path/to/module
   govet:
     # проверка на использование переменных «в тени»
-    check-shadowing: true
+    shadow: true
   goconst:
   # goconst находит строки не меньше 2 символов, которые встречаются хотя бы 2 раза
     min-len: 2

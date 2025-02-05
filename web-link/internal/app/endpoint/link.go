@@ -45,12 +45,14 @@ type linkSvc interface {
 	GetAllUsers() (model.Users, error)
 }
 
+// Appsvc - struct to part which works on front API side
 type Appsvc struct {
 	linkSVC repository.RepoIf
 	Prometh PromIf
 	jTracer trace.Tracer
 }
 
+// NewAppsvc - constructs Appsvc
 func NewAppsvc(linkSVC repository.RepoIf, Prometh PromIf, jTracer trace.Tracer) *Appsvc {
 	return &Appsvc{
 		linkSVC,

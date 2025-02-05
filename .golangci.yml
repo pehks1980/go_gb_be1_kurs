@@ -1,3 +1,8 @@
+#The .golangci.yml file is applied locally
+#and also on the GitHub runner during the execution of the golangci-lint tool.
+#Specifically, it is applied at the point where the golangci-lint command is executed.
+# The linter reads this configuration file to determine which linters to enable,
+#their settings, and how to report issues.
 # настройки запуска
 run:
 # значение конкурентности устанавливаем по количеству CPU
@@ -12,10 +17,11 @@ run:
 # vendor$, third_party$, testdata$, examples$, Godeps$, builtin$
   skip-dirs-use-default: true
 
-# список линтеров
+# список линтеров golangci-lint tool
 linters:
   disable-all: true
   enable:
+  - shadow # This replaces the deprecated `govet.check-shadowing`
   - gofmt # форматирование кода (пробелы, отступы, скобки)
   - goimports # обновление списка imports
   - govet # общий анализ возможных багов
@@ -40,3 +46,8 @@ linters-settings:
     # функция помечается длинной если она больше 100 строк кода либо больше 50 операций
     lines: 100
     statements: 50
+    #disable them
+  deadcode:
+    enabled: false
+  exportloopref:
+    enabled: false

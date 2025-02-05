@@ -15,8 +15,8 @@ import (
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/pkg/model"
 
-	"go.opentelemetry.io/otel/trace"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 
 	"go.uber.org/zap"
 )
@@ -353,7 +353,7 @@ func (pgr *PgRepo) Put(ctx context.Context, uid, key string, value model.DataEl,
 	//defer span.Finish()
 
 	_, span := pgr.Tracer.Start(context.Background(), "Put to PG repo")
-    defer span.End()
+	defer span.End()
 
 	grPut := func(ctx context.Context, dbpool *pgxpool.Pool, uid, key string, userdata *UserData) error {
 		const sql = `
@@ -372,7 +372,6 @@ func (pgr *PgRepo) Put(ctx context.Context, uid, key string, value model.DataEl,
 			attribute.String("uid", uid),
 			attribute.String("data", string(data)),
 		))
-
 
 		_, err := dbpool.Exec(ctx, sql,
 			uid,
@@ -493,7 +492,7 @@ func grGetUseruid(ctx context.Context, dbpool *pgxpool.Pool, shorturl string) (s
 func (pgr *PgRepo) List(ctx context.Context, uid string) ([]string, error) {
 
 	ctx, span := pgr.Tracer.Start(context.Background(), "pg_repo.LIST")
-    defer span.End()
+	defer span.End()
 
 	//span, ctx := opentracing.StartSpanFromContextWithTracer(ctx, pgr.Tracer, "pg_repo.LIST")
 	//defer span.Finish()
@@ -838,7 +837,7 @@ func (pgr *PgRepo) PayUser(ctx context.Context, uidA, uidB, amount string) error
 	//defer span.Finish()
 
 	ctx, span := pgr.Tracer.Start(context.Background(), "pg_repo.PayUser")
-    defer span.End()
+	defer span.End()
 
 	// pay money transaction b/w users
 	grPayUser := func(ctx context.Context, dbpool *pgxpool.Pool, uidA, uidB string, amount string, span trace.Span) error {
@@ -1022,7 +1021,7 @@ func (pgr *PgRepo) GetAll(ctx context.Context, uid string) (model.Data, error) {
 	//defer span.Finish()
 
 	ctx, span := pgr.Tracer.Start(context.Background(), "pg_repo.GETALL")
-    defer span.End()
+	defer span.End()
 
 	grGetAll := func(ctx context.Context, dbpool *pgxpool.Pool, span trace.Span) ([]UserData, error) {
 		const sql = `

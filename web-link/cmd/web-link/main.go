@@ -9,9 +9,9 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
-	"strconv"
 
 	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/app/service"
 
@@ -26,15 +26,13 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	"go.opentelemetry.io/otel/sdk/resource"
 
-	"go.opentelemetry.io/otel/semconv/v1.7.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.22.0"
 
 	"go.opentelemetry.io/otel/attribute"
-
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/sdk/trace"
 	tracer "go.opentelemetry.io/otel/trace"
-
 )
 
 func initTracer() (*trace.TracerProvider, error) {
@@ -107,7 +105,6 @@ func main() {
 	// Create a new tracer
 	jTracer := otel.Tracer("weblink")
 
-
 	port := os.Getenv("PORT")
 	if port == "" {
 		log.Printf("$PORT is not set. using default %s", *portdef)
@@ -163,7 +160,7 @@ func main() {
 
 	// tracer first message
 	_, span := jTracer.Start(ctx, "jTracer.Start:")
-    defer span.End()
+	defer span.End()
 
 	timeoutStr := strconv.FormatInt(*shutdownTimeout, 10)
 
@@ -175,13 +172,12 @@ func main() {
 	))
 
 	defer func() {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		ctxf, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
-		if err := tp.ForceFlush(ctx); err != nil {
+		if err := tp.ForceFlush(ctxf); err != nil {
 			log.Fatalf("failed to flush traces: %v", err)
 		}
 	}()
-
 
 	// запуск сервера
 	go func() {

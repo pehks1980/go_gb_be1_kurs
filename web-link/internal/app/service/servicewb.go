@@ -6,8 +6,8 @@ import (
 	"log"
 	"time"
 
-	"go.opentelemetry.io/otel/trace"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/pkg/repository"
 
@@ -36,7 +36,7 @@ type cachedwbrepo interface {
 	GetAllUsers() (model.Users, error)
 }
 
-//ServiceWb - интерфейс кеша с Writeback
+// ServiceWb - интерфейс кеша с Writeback
 type ServiceWb struct {
 	repo       cachedwbrepo //repo
 	cacheWb    *cache.Cache //основной как бы репозиторий
@@ -48,7 +48,7 @@ type ServiceWb struct {
 	tracer     trace.Tracer
 }
 
-//NewWb - конструктор ServiceWb
+// NewWb - конструктор ServiceWb
 func NewWb(repo cachedwbrepo, tracer trace.Tracer) *ServiceWb {
 	// connect to redis server
 	rdb := redis.NewClient(&redis.Options{
@@ -93,7 +93,7 @@ func NewWb(repo cachedwbrepo, tracer trace.Tracer) *ServiceWb {
 	return servicewb
 }
 
-//New stub method
+// New stub method
 func (s *ServiceWb) New(ctx context.Context, filename string, tracer trace.Tracer) repository.RepoIf {
 	panic("implement me")
 }
@@ -125,7 +125,7 @@ func (s *ServiceWb) Put(ctx context.Context, uid, key string, value model.DataEl
 	//defer span.Finish()
 
 	ctx, span := s.tracer.Start(ctx, "wb.uid_PUT:")
-    defer span.End()
+	defer span.End()
 
 	if err != nil {
 		log.Printf("items (getall) for %s cannot be put to cache: err: %v", uid, err)
@@ -180,8 +180,7 @@ func (s *ServiceWb) List(ctx context.Context, uid string) ([]string, error) {
 	//span, ctx := opentracing.StartSpanFromContextWithTracer(ctx, s.tracer, "wb.uid_LIST:")
 	//defer span.Finish()
 	ctx, span := s.tracer.Start(ctx, "wb.uid_LIST:")
-    defer span.End()
-
+	defer span.End()
 
 	err2 := s.cacheWb.Get(ctx, key, &items)
 
@@ -209,7 +208,7 @@ func (s *ServiceWb) List(ctx context.Context, uid string) ([]string, error) {
 	return nil, err
 }
 
-//GetAll - get all links in db (only in pg mode)
+// GetAll - get all links in db (only in pg mode)
 func (s *ServiceWb) GetAll(ctx context.Context, uid string) (model.Data, error) {
 
 	key := fmt.Sprintf("uid_GETALL:")
@@ -221,7 +220,7 @@ func (s *ServiceWb) GetAll(ctx context.Context, uid string) (model.Data, error) 
 	//defer span.Finish()
 
 	ctx, span := s.tracer.Start(ctx, "wb.uid_GETALL:")
-    defer span.End()
+	defer span.End()
 
 	err2 := s.cacheWb.Get(ctx, key, &items)
 
@@ -283,7 +282,7 @@ func (s *ServiceWb) CloseConn() {
 	close(s.Qin)
 }
 
-//PutUser - register new or update user
+// PutUser - register new or update user
 func (s *ServiceWb) PutUser(value model.User) (string, error) {
 	val, err := s.repo.PutUser(value)
 	if err != nil {
@@ -293,7 +292,7 @@ func (s *ServiceWb) PutUser(value model.User) (string, error) {
 	return val, nil
 }
 
-//DelUser - when delete user
+// DelUser - when delete user
 func (s *ServiceWb) DelUser(uid string) error {
 	if err := s.repo.DelUser(uid); err != nil {
 		log.Printf("service/UserDel: userdel repo err: %v", err)
@@ -302,7 +301,7 @@ func (s *ServiceWb) DelUser(uid string) error {
 	return nil
 }
 
-//GetUser - when get user profile
+// GetUser - when get user profile
 func (s *ServiceWb) GetUser(uid string) (model.User, error) {
 	value, err := s.repo.GetUser(uid)
 	if err != nil {
@@ -312,12 +311,12 @@ func (s *ServiceWb) GetUser(uid string) (model.User, error) {
 	return value, nil
 }
 
-//WhoAmI - when check interface type (file or pg)
+// WhoAmI - when check interface type (file or pg)
 func (s *ServiceWb) WhoAmI() uint64 {
 	return s.repo.WhoAmI()
 }
 
-//PayUser - payment one user to another (tx)
+// PayUser - payment one user to another (tx)
 func (s *ServiceWb) PayUser(ctx context.Context, uidA, uidB, amount string) error {
 	if err := s.repo.PayUser(ctx, uidA, uidB, amount); err != nil {
 		log.Printf("service/PayUser: payuser repo err: %v", err)
@@ -326,7 +325,7 @@ func (s *ServiceWb) PayUser(ctx context.Context, uidA, uidB, amount string) erro
 	return nil
 }
 
-//FindSuperUser - find who is su (get suid)
+// FindSuperUser - find who is su (get suid)
 func (s *ServiceWb) FindSuperUser() (string, error) {
 	value, err := s.repo.FindSuperUser()
 	if err != nil {
@@ -336,7 +335,7 @@ func (s *ServiceWb) FindSuperUser() (string, error) {
 	return value, nil
 }
 
-//AuthUser - user login (only in pg mode)
+// AuthUser - user login (only in pg mode)
 func (s *ServiceWb) AuthUser(user model.User) (string, error) {
 	value, err := s.repo.AuthUser(user)
 	if err != nil {

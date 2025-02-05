@@ -7,14 +7,14 @@ repos:
     -   id: trailing-whitespace
 
 
--   repo: https://github.com/dnephin/pre-commit-golang
-    rev: v0.5.1
+#-   repo: https://github.com/dnephin/pre-commit-golang
+#    rev: v0.5.1
 
-    hooks:
-        - id: go-fmt
+#    hooks:
+ #       - id: go-fmt
         #- id: go-vet
-        - id: go-imports
-
+  #      - id: go-imports
+#
 
 -   repo: https://github.com/Bahjat/pre-commit-golang
     rev: v1.0.3

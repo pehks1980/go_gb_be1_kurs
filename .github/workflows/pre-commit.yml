@@ -28,10 +28,10 @@ jobs:
       run: cd web-link && go test ./...
 
     - name: Install GolangCI-lint
-      run: go get github.com/golangci/golangci-lint/cmd/golangci-lint
+      run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 
     - name: Install Golint
-      run: go get -u golang.org/x/lint/golint
+      run: go install -u golang.org/x/lint/golint@latest
 
     - name: Check Golint
       run: cd web-link && golint $(go list ./... | grep -v /vendor/)

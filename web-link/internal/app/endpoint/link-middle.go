@@ -15,7 +15,7 @@ import (
 // lint error fix - did not like string type
 type ctxKey struct{}
 
-//PromMiddlewareFunc - оценивает время обработки и выводит его в гистограмму /metrics
+// PromMiddlewareFunc - оценивает время обработки и выводит его в гистограмму /metrics
 func PromMiddlewareFunc(promif PromIf) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

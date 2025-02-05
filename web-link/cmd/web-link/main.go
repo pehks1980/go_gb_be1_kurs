@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+	"strconv"
 
 	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/app/service"
 
@@ -17,13 +19,48 @@ import (
 	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/app/endpoint"
 	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/pkg/repository"
 
-	_ "github.com/opentracing/opentracing-go"
-	"github.com/uber/jaeger-client-go/config"
 	_ "go.uber.org/zap"
 
-	jaegerlog "github.com/uber/jaeger-client-go/log"
 	// репозиторий (хранилище)  файло json or pg sql(db)
+
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	"go.opentelemetry.io/otel/sdk/resource"
+
+	"go.opentelemetry.io/otel/semconv/v1.7.0"
+
+	"go.opentelemetry.io/otel/attribute"
+
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/sdk/trace"
+	tracer "go.opentelemetry.io/otel/trace"
+
 )
+
+func initTracer() (*trace.TracerProvider, error) {
+	// Initialize OTLP HTTP Exporter (Sends traces to Jaeger via OTLP)
+	exporter, err := otlptracehttp.New(context.Background(),
+		otlptracehttp.WithEndpoint("192.168.1.204:4318"),
+		otlptracehttp.WithInsecure(), // Remove TLS for local testing
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create OTLP HTTP exporter: %w", err)
+	}
+
+	// Define the Tracer Provider
+	tp := trace.NewTracerProvider(
+		trace.WithBatcher(exporter), // Send traces in batches
+		trace.WithResource(resource.NewWithAttributes(
+			semconv.SchemaURL,
+			semconv.ServiceNameKey.String("weblink"), // Change to your service name
+		)),
+	)
+
+	// Set as the global tracer provider
+	otel.SetTracerProvider(tp)
+
+	return tp, nil
+}
 
 // главная петля
 func main() {
@@ -55,6 +92,22 @@ func main() {
 		//reassign port val from .env file
 		port = &c.PORT
 	*/
+
+	// Initialize OpenTelemetry Tracer
+	tp, err := initTracer()
+	if err != nil {
+		log.Fatalf("failed to initialize tracer: %v", err)
+	}
+	defer func() {
+		if err := tp.Shutdown(context.Background()); err != nil {
+			log.Fatalf("failed to shutdown tracer: %v", err)
+		}
+	}()
+
+	// Create a new tracer
+	jTracer := otel.Tracer("weblink")
+
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		log.Printf("$PORT is not set. using default %s", *portdef)
@@ -70,28 +123,6 @@ func main() {
 	} else {
 		log.Printf("Using env $REPO = %s", storageName)
 	}
-
-	// init tracer
-	jLogger := jaegerlog.StdLogger
-	// tracer config init
-	cfg := &config.Configuration{
-		ServiceName: "weblink",
-		Sampler: &config.SamplerConfig{
-			Type:  "const",
-			Param: 1,
-		},
-		Reporter: &config.ReporterConfig{
-			LocalAgentHostPort: "192.168.1.204:6831",
-			LogSpans:           true,
-		},
-	}
-	jTracer, jCloser, err := cfg.NewTracer(config.Logger(jLogger))
-
-	if err != nil {
-		log.Fatalf("cannot init Jaeger err: %v", err)
-	}
-	// close the closer
-	defer jCloser.Close()
 
 	// инициализация файлового хранилища ук на структуру repo
 	var repoif, linkSVC repository.RepoIf
@@ -129,9 +160,33 @@ func main() {
 		Addr:    net.JoinHostPort("", port),
 		Handler: endpoint.RegisterPublicHTTP(appsvc),
 	}
+
+	// tracer first message
+	_, span := jTracer.Start(ctx, "jTracer.Start:")
+    defer span.End()
+
+	timeoutStr := strconv.FormatInt(*shutdownTimeout, 10)
+
+	span.AddEvent("main inits: ", tracer.WithAttributes(
+		attribute.String("API port", *portdef),
+		attribute.String("repo", *storageType),
+		attribute.String("repo def", *storageNameDef),
+		attribute.String("shutdown timeout", timeoutStr),
+	))
+
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		if err := tp.ForceFlush(ctx); err != nil {
+			log.Fatalf("failed to flush traces: %v", err)
+		}
+	}()
+
+
 	// запуск сервера
 	go func() {
-		if err := serv.ListenAndServe(); err != nil {
+		// ignore standard error when gracefull shutdown - Server closed
+		if err := serv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("listen and serve err: %v", err)
 		}
 	}()

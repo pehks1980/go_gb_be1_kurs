@@ -5,8 +5,7 @@ lint1:
 	golangci-lint run ./...
 lint2:
 	#go get -u golang.org/x/lint/golint
-	#/Users/user/go/bin/
-	golint $$(go list ./... | grep -v native)
+	/Users/user/go/bin/golint $$(go list ./... | grep -v native)
 # exe
 build:
 	@go build ./cmd/web-link/main.go

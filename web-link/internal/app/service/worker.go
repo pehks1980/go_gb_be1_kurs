@@ -40,7 +40,7 @@ func NewWorker(id int, Qin chan *Task) *Worker {
 	}
 }
 
-//ProcessQ - когда по каналу приходит Task он будет обработан горутиной workera
+// ProcessQ - когда по каналу приходит Task он будет обработан горутиной workera
 func (w Worker) ProcessQ(ctx context.Context, s *ServiceWb) {
 	log.Printf("worker id = %d started.", w.id)
 	var resultRead ResultDbItems
@@ -118,18 +118,18 @@ func (w Worker) ProcessQ(ctx context.Context, s *ServiceWb) {
 	}
 }
 
-//QBroker -  стуктура диспетчера канала управления воркерами
+// QBroker -  стуктура диспетчера канала управления воркерами
 type QBroker struct {
 	Qin chan *Task
 }
 
-//ResultDbItems - структура для канала данных и ошибок которые возвращает worker
+// ResultDbItems - структура для канала данных и ошибок которые возвращает worker
 type ResultDbItems struct {
 	ResultError error
 	ResultDb    []string
 }
 
-//Produce - функция генерит задание task1 для исполнения воркером (метод LIST)
+// Produce - функция генерит задание task1 для исполнения воркером (метод LIST)
 func (p QBroker) Produce(ctx context.Context, uid string, key string) ([]string, error) {
 	doneCh := make(chan ResultDbItems)
 	task := &Task{"Task1",
@@ -147,7 +147,7 @@ func (p QBroker) Produce(ctx context.Context, uid string, key string) ([]string,
 	return res.ResultDb, res.ResultError
 }
 
-//ProduceWr - функция генерит задание task2 для исполнения воркером (метод PUT)
+// ProduceWr - функция генерит задание task2 для исполнения воркером (метод PUT)
 func (p QBroker) ProduceWr(ctx context.Context, uid string, key string, su bool) {
 	doneCh := make(chan ResultDbItems)
 	task := &Task{"Task2",

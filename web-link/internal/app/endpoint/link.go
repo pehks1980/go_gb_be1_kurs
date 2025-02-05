@@ -10,9 +10,9 @@ import (
 	"strconv"
 	"time"
 
-	tracerlog "github.com/opentracing/opentracing-go/log"
+	"go.opentelemetry.io/otel/trace"
 
-	"github.com/opentracing/opentracing-go"
+	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/pkg/repository"
 
@@ -24,10 +24,10 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-//  linkSvc - интерфейс сервиса со стороны http
-//  также имеет put get del crud - для работы с файлохранилищем
-//  list - list all links for uid user
-//  GetUn - open link for redir and add 1 to redir count
+// linkSvc - интерфейс сервиса со стороны http
+// также имеет put get del crud - для работы с файлохранилищем
+// list - list all links for uid user
+// GetUn - open link for redir and add 1 to redir count
 type linkSvc interface {
 	Get(ctx context.Context, uid, key string, su bool) (model.DataEl, error)
 	Put(ctx context.Context, uid, key string, value model.DataEl, su bool) error
@@ -48,10 +48,10 @@ type linkSvc interface {
 type Appsvc struct {
 	linkSVC repository.RepoIf
 	Prometh PromIf
-	jTracer opentracing.Tracer
+	jTracer trace.Tracer
 }
 
-func NewAppsvc(linkSVC repository.RepoIf, Prometh PromIf, jTracer opentracing.Tracer) *Appsvc {
+func NewAppsvc(linkSVC repository.RepoIf, Prometh PromIf, jTracer trace.Tracer) *Appsvc {
 	return &Appsvc{
 		linkSVC,
 		Prometh,
@@ -252,7 +252,7 @@ func getUserData(svc linkSvc) func(http.ResponseWriter, *http.Request) {
 	}
 }
 
-//postRegister - register new user
+// postRegister - register new user
 func postRegister(svc linkSvc) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, request *http.Request) {
 		//json header check
@@ -325,7 +325,7 @@ func postTokenRefresh(svc linkSvc) func(http.ResponseWriter, *http.Request) {
 }
 
 // postAuth - authenticate and give authorization token
-func postAuth(svc linkSvc, prom PromIf, tracer opentracing.Tracer) func(http.ResponseWriter, *http.Request) {
+func postAuth(svc linkSvc, prom PromIf, tracer trace.Tracer) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, request *http.Request) {
 
 		defer func() {
@@ -333,8 +333,10 @@ func postAuth(svc linkSvc, prom PromIf, tracer opentracing.Tracer) func(http.Res
 			prom.UpdateCtr()
 		}()
 
-		span, _ := opentracing.StartSpanFromContextWithTracer(request.Context(), tracer, "postAuth")
-		defer span.Finish()
+		//span, _ := opentracing.StartSpanFromContextWithTracer(request.Context(), tracer, "postAuth")
+		//defer span.Finish()
+		_, span := tracer.Start(request.Context(), "postAuth")
+		defer span.End()
 
 		//json header check
 		contentType := request.Header.Get("Content-Type")
@@ -368,9 +370,10 @@ func postAuth(svc linkSvc, prom PromIf, tracer opentracing.Tracer) func(http.Res
 				return
 			}
 			log.Printf("USER %s Logged in.\n", jsonPostUser.Name)
-			span.LogFields(
-				tracerlog.String("USER Got Auth Token", jsonPostUser.Name),
-			)
+
+			span.AddEvent("Event", trace.WithAttributes(
+				attribute.String("USER Got Auth Token", jsonPostUser.Name),
+			))
 			tokenAccess, _ := GenJWTWithClaims(UID, 0)
 			tokenRefresh, _ := GenJWTWithClaims(UID, 1)
 
@@ -466,11 +469,14 @@ func postAuth(svc linkSvc, prom PromIf, tracer opentracing.Tracer) func(http.Res
 }
 
 // delFromLink deletes link from api storage by shortlink
-func delFromLink(linkSvc linkSvc, tracer opentracing.Tracer) http.HandlerFunc {
+func delFromLink(linkSvc linkSvc, tracer trace.Tracer) http.HandlerFunc {
 	return func(w http.ResponseWriter, request *http.Request) {
 
-		span, ctx := opentracing.StartSpanFromContextWithTracer(request.Context(), tracer, "delFromLink")
-		defer span.Finish()
+		//span, ctx := opentracing.StartSpanFromContextWithTracer(request.Context(), tracer, "delFromLink")
+		//defer span.Finish()
+
+		ctx, span := tracer.Start(request.Context(), "delFromLink")
+		defer span.End()
 
 		checkif := linkSvc.WhoAmI()
 
@@ -520,11 +526,14 @@ func delFromLink(linkSvc linkSvc, tracer opentracing.Tracer) http.HandlerFunc {
 }
 
 // putToLink updates link from api storage
-func putToLink(linkSvc linkSvc, tracer opentracing.Tracer) http.HandlerFunc {
+func putToLink(linkSvc linkSvc, tracer trace.Tracer) http.HandlerFunc {
 	return func(w http.ResponseWriter, request *http.Request) {
 
-		span, ctx := opentracing.StartSpanFromContextWithTracer(request.Context(), tracer, "putToLink")
-		defer span.Finish()
+		//span, ctx := opentracing.StartSpanFromContextWithTracer(request.Context(), tracer, "putToLink")
+		//defer span.Finish()
+
+		ctx, span := tracer.Start(request.Context(), "putToLink")
+		defer span.End()
 
 		//json header check
 		contentType := request.Header.Get("Content-Type")
@@ -589,11 +598,14 @@ func putToLink(linkSvc linkSvc, tracer opentracing.Tracer) http.HandlerFunc {
 }
 
 // postToLink - creates new item in api storage
-func postToLink(linkSvc linkSvc, tracer opentracing.Tracer) http.HandlerFunc {
+func postToLink(linkSvc linkSvc, tracer trace.Tracer) http.HandlerFunc {
 	return func(w http.ResponseWriter, request *http.Request) {
 
-		span, ctx := opentracing.StartSpanFromContextWithTracer(request.Context(), tracer, "postToLink")
-		defer span.Finish()
+		//span, ctx := opentracing.StartSpanFromContextWithTracer(request.Context(), tracer, "postToLink")
+		//defer span.Finish()
+
+		ctx, span := tracer.Start(request.Context(), "postToLink")
+		defer span.End()
 
 		//json header check
 		contentType := request.Header.Get("Content-Type")
@@ -679,11 +691,14 @@ func postToLink(linkSvc linkSvc, tracer opentracing.Tracer) http.HandlerFunc {
 }
 
 // getFromLink - get links list in json
-func getFromLink(linkSvc linkSvc, tracer opentracing.Tracer) http.HandlerFunc {
+func getFromLink(linkSvc linkSvc, tracer trace.Tracer) http.HandlerFunc {
 	return func(w http.ResponseWriter, request *http.Request) {
 
-		span, ctx := opentracing.StartSpanFromContextWithTracer(request.Context(), tracer, "getFromLink")
-		defer span.Finish()
+		//span, ctx := opentracing.StartSpanFromContextWithTracer(request.Context(), tracer, "getFromLink")
+		//defer span.Finish()
+
+		ctx, span := tracer.Start(request.Context(), "getFromLink")
+		defer span.End()
 
 		w.Header().Set("Content-Type", "application/json")
 
@@ -764,11 +779,14 @@ func getFromLink(linkSvc linkSvc, tracer opentracing.Tracer) http.HandlerFunc {
 }
 
 // getShortStat - get one link from api
-func getShortStat(linkSvc linkSvc, tracer opentracing.Tracer) http.HandlerFunc {
+func getShortStat(linkSvc linkSvc, tracer trace.Tracer) http.HandlerFunc {
 	return func(w http.ResponseWriter, request *http.Request) {
 
-		span, ctx := opentracing.StartSpanFromContextWithTracer(request.Context(), tracer, "getShortStat")
-		defer span.Finish()
+		//span, ctx := opentracing.StartSpanFromContextWithTracer(request.Context(), tracer, "getShortStat")
+		//defer span.Finish()
+
+		ctx, span := tracer.Start(request.Context(), "getShortStat")
+		defer span.End()
 
 		w.Header().Set("Content-Type", "application/json")
 
@@ -826,11 +844,14 @@ func getShortStat(linkSvc linkSvc, tracer opentracing.Tracer) http.HandlerFunc {
 }
 
 // getShortOpen - get link opened (unonimously)
-func getShortOpen(linkSvc linkSvc, tracer opentracing.Tracer) http.HandlerFunc {
+func getShortOpen(linkSvc linkSvc, tracer trace.Tracer) http.HandlerFunc {
 	return func(w http.ResponseWriter, request *http.Request) {
 
-		span, ctx := opentracing.StartSpanFromContextWithTracer(request.Context(), tracer, "getShortOpen")
-		defer span.Finish()
+		//span, ctx := opentracing.StartSpanFromContextWithTracer(request.Context(), tracer, "getShortOpen")
+		//defer span.Finish()
+
+		ctx, span := tracer.Start(request.Context(), "getShortOpen")
+		defer span.End()
 
 		// get data
 		// update data

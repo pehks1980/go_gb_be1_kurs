@@ -2,6 +2,7 @@ package endpoint_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -10,6 +11,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/app/endpoint"
 	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/pkg/repository"
@@ -29,15 +32,26 @@ func TestHandler(t *testing.T) {
 	var repoif repository.RepoIf
 	// подстановка в интерфейс соотвествующего хранилища
 	repoif = new(repository.FileRepo)
-	// вызов метода интерфейса - инициализация конфигa
-	linkSVC := repoif.New("test.json")
+
+	// create empty context for this app
+	ctx := context.Background()
 
 	var promif, prometh endpoint.PromIf
 	// подстановка в интерфейс соотвествующего хранилища
 	promif = new(endpoint.Prom)
 	prometh = promif.New()
 
-	handler := endpoint.RegisterPublicHTTP(linkSVC, prometh)
+	// No-op tracer (does nothing)
+	var noopTracer trace.Tracer
+
+	noopTracer = trace.NewNoopTracerProvider().Tracer("aaa")
+
+	// вызов метода интерфейса - инициализация конфигa
+	linkSVC := repoif.New(ctx, "test.json", noopTracer)
+	//init our appsvc struct
+	appsvc := endpoint.NewAppsvc(linkSVC, prometh, noopTracer)
+
+	handler := endpoint.RegisterPublicHTTP(appsvc)
 
 	// auth test /////////////////////////////////////////////////////////////////////////////////////
 	// setup test request

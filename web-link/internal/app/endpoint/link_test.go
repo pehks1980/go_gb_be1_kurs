@@ -6,15 +6,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
 
-	"github.com/uber/jaeger-client-go/config"
-	jaegerlog "github.com/uber/jaeger-client-go/log"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/app/endpoint"
 	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/pkg/repository"
@@ -43,32 +41,15 @@ func TestHandler(t *testing.T) {
 	promif = new(endpoint.Prom)
 	prometh = promif.New()
 
-	// init tracer
-	jLogger := jaegerlog.StdLogger
-	// tracer config init
-	cfg := &config.Configuration{
-		ServiceName: "weblink",
-		Sampler: &config.SamplerConfig{
-			Type:  "const",
-			Param: 1,
-		},
-		Reporter: &config.ReporterConfig{
-			LocalAgentHostPort: "127.0.0.1:6831",
-			LogSpans:           true,
-		},
-	}
-	jTracer, jCloser, err := cfg.NewTracer(config.Logger(jLogger))
+	// No-op tracer (does nothing)
+	var noopTracer trace.Tracer
 
-	if err != nil {
-		log.Fatalf("cannot init Jaeger err: %v", err)
-	}
-	// close the closer
-	defer jCloser.Close()
+	noopTracer = trace.NewNoopTracerProvider().Tracer("aaa")
 
 	// вызов метода интерфейса - инициализация конфигa
-	linkSVC := repoif.New(ctx, "test.json", jTracer)
+	linkSVC := repoif.New(ctx, "test.json", noopTracer)
 	//init our appsvc struct
-	appsvc := endpoint.NewAppsvc(linkSVC, prometh, jTracer)
+	appsvc := endpoint.NewAppsvc(linkSVC, prometh, noopTracer)
 
 	handler := endpoint.RegisterPublicHTTP(appsvc)
 

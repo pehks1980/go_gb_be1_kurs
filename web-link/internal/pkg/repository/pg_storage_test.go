@@ -7,7 +7,6 @@ package repository_test
 import (
 	"context"
 	"fmt"
-	"log"
 	"testing"
 	"time"
 
@@ -15,8 +14,8 @@ import (
 	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/pkg/repository"
 	"github.com/stretchr/testify/require"
 
-	"github.com/uber/jaeger-client-go/config"
-	jaegerlog "github.com/uber/jaeger-client-go/log"
+	"go.opentelemetry.io/otel/trace"
+
 )
 
 func TestIntegrationSVC(t *testing.T) {
@@ -24,29 +23,12 @@ func TestIntegrationSVC(t *testing.T) {
 	repoif = new(repository.PgRepo)
 	ctx := context.Background()
 
-	// init tracer
-	jLogger := jaegerlog.StdLogger
-	// tracer config init
-	cfg := &config.Configuration{
-		ServiceName: "weblink",
-		Sampler: &config.SamplerConfig{
-			Type:  "const",
-			Param: 1,
-		},
-		Reporter: &config.ReporterConfig{
-			LocalAgentHostPort: "127.0.0.1:6831",
-			LogSpans:           true,
-		},
-	}
-	jTracer, jCloser, err := cfg.NewTracer(config.Logger(jLogger))
+	// No-op tracer (does nothing)
+	var noopTracer trace.Tracer
 
-	if err != nil {
-		log.Fatalf("cannot init Jaeger err: %v", err)
-	}
-	// close the closer
-	defer jCloser.Close()
+	noopTracer = trace.NewNoopTracerProvider().Tracer("test")
 
-	linkSVC = repoif.New(ctx, "postgres://postuser:postpassword@192.168.1.204:5432/a4", jTracer)
+	linkSVC = repoif.New(ctx, "postgres://postuser:postpassword@192.168.1.204:5432/a4", noopTracer)
 	// init test struct
 	tests := []struct {
 		name     string

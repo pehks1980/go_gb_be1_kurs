@@ -1,4 +1,5 @@
 # gb_go_be1 beckend 1 final kurs work
+shortlink server with support of several features.
 
 Описание и принцип работы программы.
 

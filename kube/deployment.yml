@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-link-arm64
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: web-link-arm64
+  template:
+    metadata:
+      labels:
+        app: web-link-arm64
+    spec:
+      containers:
+        - name: web-link-arm64
+          #IMPORTANT: provide your username here
+          image: docker.io/library/web-link:arm64
+          imagePullPolicy: Never #get image from local kube 'registry'
+          ports:
+            - containerPort: 8000
+          livenessProbe:
+            httpGet:
+              path: /__heartbeat__
+              port: 8000
+              scheme: HTTP
+            initialDelaySeconds: 5
+            periodSeconds: 15
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /__heartbeat__
+              port: 8000
+              scheme: HTTP
+            initialDelaySeconds: 5
+            timeoutSeconds: 1
+
+#kubectl apply -f deployment.yml
+#kubectl get deployments
+#kubectl get pods
+#kubectl port-forward web-link-arm64-7698cdd9c7-7qpz6 8000
+#kubectl logs web-link-arm64-7698cdd9c7-7qpz6

@@ -49,10 +49,10 @@ type ServiceWb struct {
 }
 
 // NewWb - конструктор ServiceWb
-func NewWb(repo cachedwbrepo, tracer trace.Tracer) *ServiceWb {
+func NewWb(redisip string, repo cachedwbrepo, tracer trace.Tracer) *ServiceWb {
 	// connect to redis server
 	rdb := redis.NewClient(&redis.Options{
-		Addr: "192.168.1.204:6379", Password: "", // no password set
+		Addr: redisip, Password: "", // no password set
 		DB: 0, // use default DB
 	})
 	repcache := cache.New(&cache.Options{

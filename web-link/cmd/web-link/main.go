@@ -35,10 +35,10 @@ import (
 	tracer "go.opentelemetry.io/otel/trace"
 )
 
-func initTracer() (*trace.TracerProvider, error) {
+func initTracer(tracerIP string) (*trace.TracerProvider, error) {
 	// Initialize OTLP HTTP Exporter (Sends traces to Jaeger via OTLP)
 	exporter, err := otlptracehttp.New(context.Background(),
-		otlptracehttp.WithEndpoint("192.168.1.204:4318"),
+		otlptracehttp.WithEndpoint(tracerIP),
 		otlptracehttp.WithInsecure(), // Remove TLS for local testing
 	)
 	if err != nil {
@@ -68,8 +68,12 @@ func main() {
 
 	storageType := flag.String("storage type", "pg", "data storage type: 'file' or 'pg'")
 
-	storageNameDef := flag.String("storage name", "postgres://postuser:postpassword@192.168.1.204:5432/a4",
+	storageNameDef := flag.String("storage name", "postgres://postuser:postpassword@192.168.31.204:5432/a4",
 		"pg: 'postgres://dbuser:dbpasswd@ip_address:port/dbname'  file: 'storage.json'. It can be also set as REPO.")
+
+	redisIPDef := flag.String("Redis serv IP", "192.168.31.204:6379","It can be also set as REDISIP.")
+
+	tracerIPDef := flag.String("Tracer serv IP", "192.168.31.204:4318","It can be also set as TRACERIP.")
 
 	//storageName := flag.String("storage name", "storage.json",
 	//	"pg: 'postgres://dbuser:dbpasswd@ip_address:port/dbname'  file: 'storage.json'")
@@ -92,7 +96,15 @@ func main() {
 	*/
 
 	// Initialize OpenTelemetry Tracer
-	tp, err := initTracer()
+	tracerIP := os.Getenv("TRACERIP")
+	if tracerIP == "" {
+		log.Printf("$TRACERIP is not set! using default %s", *tracerIPDef)
+		tracerIP = *tracerIPDef
+	} else {
+		log.Printf("Using env $TRACERIP = %s", tracerIP)
+	}
+
+	tp, err := initTracer(tracerIP)
 	if err != nil {
 		log.Fatalf("failed to initialize tracer: %v", err)
 	}
@@ -121,6 +133,14 @@ func main() {
 		log.Printf("Using env $REPO = %s", storageName)
 	}
 
+	redisIP := os.Getenv("REDISIP")
+	if redisIP == "" {
+		log.Printf("$REDISIP is not set. using default %s", *redisIPDef)
+		redisIP = *redisIPDef
+	} else {
+		log.Printf("Using env $REDISIP = %s", redisIP)
+	}
+
 	// инициализация файлового хранилища ук на структуру repo
 	var repoif, linkSVC repository.RepoIf
 
@@ -139,7 +159,8 @@ func main() {
 	// init cache service interface which works as shim between selected repo and http handlers
 	// service interface provides redis cache feature
 	//linkSVC = service.New(repoif, jTracer) //cache aside
-	linkSVC = service.NewWb(repoif, jTracer) //cache aside + cache write back with async workers
+
+	linkSVC = service.NewWb(redisIP, repoif, jTracer) //cache aside + cache write back with async workers
 	// такая схема получается
 	// DB(file) repoif <-> cache service (service/servicewb) linkSVC <-> API (endpoint) <-> http:8080
 

@@ -33,7 +33,7 @@ build_arm:
 	# save it in tar archive
 	docker save web-link:arm64  > weblink-arm64.tar
 	# copy to pi via scp will ask for remote user passwd if not via ssh-cert
-	scp weblink-arm64.tar user@192.168.1.204:/home/user
+	scp weblink-arm64.tar user@192.168.31.204:/home/user
 	# unpack tar to local image docker repo (on pi side)
 	# docker load -i weblink-arm64.tar
 	# check & run

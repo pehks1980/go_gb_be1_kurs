@@ -1,9 +1,9 @@
-FROM golang:1.18 as modules
+FROM golang:1.23 as modules
 
 ADD go.mod go.sum /m/
 RUN cd /m && go mod download
 
-FROM golang:1.18 as builder
+FROM golang:1.23 as builder
 COPY --from=modules /go/pkg /go/pkg
 RUN mkdir -p /web-link
 

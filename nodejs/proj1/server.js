@@ -1,8 +1,20 @@
 // запускаем apm agent
 //1. npm install elastic-apm-node --save
+
+const envAPMURL = process.env.APMURL;
+let apmurl = "";
+if ( envAPMURL === undefined ) {
+
+    apmurl = 'http://127.0.0.1:8200'; //local
+    console.log("APMURL is not set in ENV, so it is set to :" , apmurl)
+
+} else {
+    apmurl = envAPMURL;
+    console.log("APMURL is set AS PER ENV:" , apmurl)
+}
 const apm = require('elastic-apm-node').start({
     serviceName: 'weblinknodeserver111',
-    serverUrl: 'http://192.168.1.210:8200',
+    serverUrl: apmurl, //like 'http://192.168.1.210:8200',
     debug: 'true',
 });
 
@@ -122,13 +134,26 @@ const redis = require("redis");
 
 const RedisStore = require('connect-redis')(session);
 //Configure redis client
+//1 setup redis ip via env
+const envREDISIP = process.env.REDISIP;
+let redip = "";
+if ( envREDISIP === undefined ) {
+    console.log("REDIS IP is not set in ENV, STOP")
+    process.exit()
+
+} else {
+    redip = envREDISIP;
+    console.log("REDIS IP is set AS PER ENV:" , )
+}
+
 const RedisClient = redis.createClient({
-    host: '192.168.1.204',
+    host: redip,
     port: 6379
 })
 
 RedisClient.on('error', function (err) {
     console.log('Could not establish a connection with redis. ' + err);
+    process.exit()
 });
 RedisClient.on('connect', function (err) {
     console.log('Connected to redis successfully');

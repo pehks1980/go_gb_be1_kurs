@@ -1,15 +1,67 @@
+// запускаем apm agent
+//1. npm install elastic-apm-node --save
+
+const envAPMURL = process.env.APMURL;
+let apmurl = "";
+if ( envAPMURL === undefined ) {
+
+    apmurl = 'http://127.0.0.1:8200'; //local
+    console.log("APMURL is not set in ENV, so it is set to :" , apmurl)
+
+} else {
+    apmurl = envAPMURL;
+    console.log("APMURL is set AS PER ENV:" , apmurl)
+}
+const apm = require('elastic-apm-node').start({
+    serviceName: 'weblinknodeserver111',
+    serverUrl: apmurl, //like 'http://192.168.1.210:8200',
+    debug: 'true',
+});
+
+
+
 //// local data 'storage'
 //var token = '';
 var tokenPayload = ''
 
 // select api address
-const apiurl = 'http://127.0.0.1:8000'; //local
+const envAPIURL = process.env.APIURL;
+let apiurl = "";
+let nodejsurl = "";
+if ( envAPIURL === undefined ) {
+
+    apiurl = 'http://127.0.0.1:8000'; //local
+    console.log("APIURL is not set in ENV, so it is set to :" , apiurl)
+
+} else {
+    apiurl = envAPIURL;
+    console.log("APIURL is set AS PER ENV:" , apiurl)
+}
+
+//const apiurl = 'http://192.168.1.204:8000'; //204
+//const apiurl = 'http://192.168.1.210:8000'; //204
 //const apiurl = 'https://web-link19801.herokuapp.com'; // heroku
 // nodejs (this) server address:port
-const nodejsurl = 'http://127.0.0.1:8090';
+//const nodejsurl = 'http://127.0.0.1:8090';
+
+//select nodejs url aka export NODEJSURL="http://127.0.0.1:8090"
+const envNODEJSURL = process.env.NODEJSURL;
+if ( envNODEJSURL === undefined ) {
+
+    nodejsurl = 'http://127.0.0.1:8090'; //local
+    console.log("NODEJSURL is not set in ENV, so it is set to :" , nodejsurl)
+
+} else {
+    nodejsurl = envNODEJSURL;
+    console.log("NODEJSURL is set AS PER ENV:" , nodejsurl)
+}
+
 // must be the same as nodejsurl -):
-const srvIP = '127.0.0.1';
+//const srvIP = '127.0.0.1';
+//const srvPort = '8090';
+const srvIP = '0.0.0.0';
 const srvPort = '8090';
+
 function jwtdecode(token) {
     let decoded = jwt_decode(token);
     console.log('token payload= ',decoded);
@@ -41,6 +93,39 @@ app.use(express.static('./views'));
 // allow latest json app use
 app.use(express.json());
 //post form data parser
+
+// body reader middleware
+app.use(function (req, res, next) {
+    if (req.method !== 'POST' && req.method !== 'PUT') {
+        return next()
+    }
+
+    // `startSpan` will only return a span if there's an
+    // active transaction
+    var span = apm.startSpan('receiving body')
+
+    next()
+        // end the span after we're done loading data from the
+        // client
+    if (span) span.end()
+
+})
+
+// JSON parser middleware
+app.use(function (req, res, next) {
+    if (req.headers['content-type'] !== 'application/json') {
+        return next()
+    }
+
+    // start a span to measure the time it takes to parse
+    // the JSON
+    var span = apm.startSpan('parse json')
+
+    next()
+    // when we've processed the json, stop the custom span
+    if (span) span.end()
+})
+
 const bodyParser = require('body-parser');
 const jwt_decode = require('jwt-decode');
 
@@ -49,13 +134,26 @@ const redis = require("redis");
 
 const RedisStore = require('connect-redis')(session);
 //Configure redis client
+//1 setup redis ip via env
+const envREDISIP = process.env.REDISIP;
+let redip = "";
+if ( envREDISIP === undefined ) {
+    console.log("REDIS IP is not set in ENV, STOP")
+    process.exit()
+
+} else {
+    redip = envREDISIP;
+    console.log("REDIS IP is set AS PER ENV:" , )
+}
+
 const RedisClient = redis.createClient({
-    host: '192.168.1.204',
+    host: redip,
     port: 6379
 })
 
 RedisClient.on('error', function (err) {
     console.log('Could not establish a connection with redis. ' + err);
+    process.exit()
 });
 RedisClient.on('connect', function (err) {
     console.log('Connected to redis successfully');
@@ -218,37 +316,30 @@ function delLinkItemAPI(callback, shorturl, token){
     });
 }
 //// put item
-function putAPI1(callback, token){
+function putAPI1(callback, item, token){
 
-    var redirsint = parseFloat(putredirs);
-    var options = {
+    let redirsint = parseFloat(item['putredirs']);
+    let options = {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer '+ token,
       },
       json : {
-          'url': puturl,
-          'shorturl' : shorturl,
+          'url': item['puturl'],
+          'shorturl' : item['shorturl'],
           'redirs' : redirsint,
           'active' : 1,
       },
 
     };
 
-    var url = apiurl + '/links/' + shorturl;
+    var url = apiurl + '/links/' + item['shorturl'];
 
     console.log('http api put call=',url,'data=', options.json);
 
     request(url, options, function(error, response, body) {
-        // субфукция получает респонз асинхронно
-        if (error) {
-            callback(error)
-        };
-
-        if (!error ){
-            callback(body)
-        };
+        callback(response,body)
     });
 }
 ///  post item
@@ -335,6 +426,22 @@ function getShortOpenAPI(callback, token) {
         callback(response,body)
     });
 }
+/// check current session middleware
+function checkcursess(session){
+    let user = {}
+    if ( !("key" in session) ) {
+        // no token
+        console.log("no token/session for user=",user)
+        return {user:user, cursess:false}
+    }
+    console.log("sess = ",session)
+    user['name'] = session.key['name']
+    user['role'] = session.key['role']
+    user['balance'] = session.key['balance']
+
+    return {user:user, cursess:true}
+}
+
 //// get handlers
 
 //// index page
@@ -383,18 +490,21 @@ app.get('/', function(req, res) {
         }, req.session.key['uid'], req.session.key['token']);
 
 });
+
 //// admin page
 app.get('/admin', function(req, res) {
+
     let user = {}
     if (!req.session.key) {
         // no token
-        res.render('page/unathorized', {user: null});
+        res.render('page/unathorized', {user: user});
         return;
     }
 
     user['name'] = req.session.key['name']
     user['role'] = req.session.key['role']
     user['balance'] = req.session.key['balance']
+
     console.log("user=",user)
 
     getAllUsersAPI(
@@ -426,15 +536,10 @@ app.get('/admin', function(req, res) {
 //// list items page
 app.get('/list', function(req, res) {
 
-        if (!req.session.key) {
-            res.render('page/unathorized', {user: null});
+        let {user, cursess} = checkcursess(req.session)
+        if (cursess == false) {
+            res.render('page/unathorized', {user: user});
             return;
-        }
-
-        let user = {
-            'role':req.session.key['role'],
-            'balance':req.session.key['balance'],
-            'name':req.session.key['name']
         }
 
         getItemsListAPI(
@@ -486,12 +591,24 @@ app.get('/list', function(req, res) {
 });
 //// list update
 app.get('/listupd', (req, res) => {
-
+/*
+    let user = {}
     if (!req.session.key) {
         res.render('page/unathorized', {user: user});
         return;
     }
 
+    user = {
+        'role':req.session.key['role'],
+        'balance':req.session.key['balance'],
+        'name':req.session.key['name']
+    }
+*/
+    let {user, cursess} = checkcursess(req.session)
+    if (cursess == false) {
+        res.render('page/unathorized', {user: user});
+        return;
+    }
     getItemsListAPI(
         function(resp, mc) {
 
@@ -522,7 +639,7 @@ app.get('/listupd', (req, res) => {
                 let res = x.datetime.split(".");
                 let res1 = res[0].split("T");
                 x.datetime = res1[1] + ' ' + res1[0];
-                console.log(x.datetime);
+                //console.log(x.datetime);
             }
 
             ejs.renderFile('views/part/table.ejs', {mc: mc.data, api: apiurl}, {}, function (err, str) {
@@ -549,18 +666,20 @@ app.get('/login', (req, res) => {
 });
 //// user register  form
 app.get('/register', (req, res) => {
+    let user = {}
     res.render('page/register', {title : 'Register new user', user: user,});
 });
 //// pressed check link button form (from list)
 app.get('/check', (req, res) => {
 
-    if (!req.session.key) {
+    let {user, cursess} = checkcursess(req.session)
+    if (cursess == false) {
         res.render('page/unathorized', {user: user});
         return;
     }
 
     shorturl = req.query.shorturl
-    console.log(`check open link ${shorturl}`);
+    console.log(`user: ${user.name} check open link: ${shorturl}`);
 
     getShortOpenAPI(
         function (resp, mc) {
@@ -588,8 +707,9 @@ app.get('/check', (req, res) => {
 });
 //// pressed edit link button form (from list)
 app.get('/edit', (req, res) => {
-    let user = {}
-    if (!req.session.key) {
+
+    let {user, cursess} = checkcursess(req.session)
+    if (cursess == false) {
         res.render('page/unathorized', {user: user});
         return;
     }
@@ -623,12 +743,19 @@ app.get('/edit', (req, res) => {
 });
 //// add new link form
 app.get('/add', (req, res) => {
-    res.render('page/add', {title : 'add new link', user: null,});
+
+    let {user, cursess} = checkcursess(req.session)
+    if (cursess == false) {
+        res.render('page/unathorized', {user: user});
+        return;
+    }
+    res.render('page/add', {title : 'add new link', user: user,});
 });
 //// pressed edit link button form (from list)
 app.get('/upduser', (req, res) => {
-    let user = {}
-    if (!req.session.key) {
+
+    let {user, cursess} = checkcursess(req.session)
+    if (cursess == false) {
         res.render('page/unathorized', {user: user});
         return;
     }
@@ -667,7 +794,8 @@ app.get('/upduser', (req, res) => {
 //// user delete item post button click
 app.post('/deluser', (req, res) => {
 
-    if (!req.session.key) {
+    let {user, cursess} = checkcursess(req.session)
+    if (cursess == false) {
         res.render('page/unathorized', {user: user});
         return;
     }
@@ -680,7 +808,7 @@ app.post('/deluser', (req, res) => {
     delUserAPI(function(resp,body /* api del call*/) {
         console.log('api user delete resp=', resp.statusCode, 'body=',body);
 
-        if (resp == undefined){
+        if (resp === undefined){
             res.render('page/unathorized', {user: user});
             return;
         }
@@ -698,8 +826,9 @@ app.post('/deluser', (req, res) => {
 });
 //// edit user post handler button click
 app.post('/upduser', (req, res) => {
-    let user = {}
-    if (!req.session.key) {
+
+    let {user, cursess} = checkcursess(req.session)
+    if (cursess == false) {
         res.render('page/unathorized', {user: user});
         return;
     }
@@ -708,10 +837,10 @@ app.post('/upduser', (req, res) => {
     console.log(`put ${click.clickTime}`, req.body);
 
     // get back params from form
-    user = {
-        name:    req.body.name,
-        email:   req.body.email,
-        role:    req.body.role,
+    let userupd = {
+        name: req.body.name,
+        email: req.body.email,
+        role: req.body.role,
         balance: req.body.balance,
     }
     let uid = req.body.uid
@@ -733,21 +862,17 @@ app.post('/upduser', (req, res) => {
         console.log('api res',resp.statusCode, body);
 
         res.redirect('/admin');
-    },user,uid, req.session.key['token']);
+    },userupd,uid, req.session.key['token']);
 
 });
 //// add new link post form
 app.post('/add', (req, res) => {
 
-    let user = {}
-    if (!req.session.key) {
+    let {user, cursess} = checkcursess(req.session)
+    if (cursess == false) {
         res.render('page/unathorized', {user: user});
         return;
     }
-
-    user['name'] = req.session.key['name']
-    user['role'] = req.session.key['role']
-    user['balance'] = req.session.key['balance']
 
     const click = {clickTime: new Date()};
     console.log(`create ${click.clickTime}`, req.body);
@@ -783,7 +908,8 @@ app.post('/add', (req, res) => {
 //// edit link post handler button click
 app.post('/edit', (req, res) => {
 
-    if (!req.session.key) {
+    let {user, cursess} = checkcursess(req.session)
+    if (cursess == false) {
         res.render('page/unathorized', {user: user});
         return;
     }
@@ -791,15 +917,22 @@ app.post('/edit', (req, res) => {
     const click = {clickTime: new Date()};
     console.log(`put ${click.clickTime}`, req.body);
     // get back params from form
-    shorturl = req.body.shorturl;
-    puturl = req.body.url;
-    putredirs = req.body.redirs;
-
-    putAPI1(function(res1 /* update link*/) {
-         console.log('api res',res1);
+    let item = {
+        shorturl : req.body.shorturl,
+        puturl : req.body.url,
+        putredirs : req.body.redirs,
+    }
+    putAPI1(function(resp, body /* update link*/) {
+        console.log('api res',resp.statusCode);
+        if (resp.statusCode != 200) {
+            console.log('error: ', body);
+            res.render('page/unathorized', {user: user});
+            return;
+        }
          console.log('click put accepted');// go to list page after link update
+        console.log('result', body);
          res.redirect('/list');
-    }, req.session.key['token']);
+    }, item, req.session.key['token']);
 
 });
 //// login form post reply
@@ -822,6 +955,7 @@ app.post('/login', (req, res) => {
 
         if (resp.statusCode !== 200) {
             //not successful
+            console.log('error: ', body)
             res.render('page/unathorized', {user: user});
             return;
         }
@@ -875,8 +1009,8 @@ app.post('/register', (req, res) => {
 //// delete item post button click
 app.post('/delete', (req, res) => {
 
-    let user = {}
-    if (!req.session.key) {
+    let {user, cursess} = checkcursess(req.session)
+    if (cursess == false) {
         res.render('page/unathorized', {user: user});
         return;
     }
@@ -892,28 +1026,21 @@ app.post('/delete', (req, res) => {
             res.render('page/unathorized', {user: user});
             return;
         }
-
+        console.log('statusCode ', resp.statusCode);
         if (resp.statusCode != 200) {
-            console.log('statusCode ', resp.statusCode);
+            console.log('error: ', body);
             res.render('page/unathorized', {user: user});
             return;
         }
-
         res.redirect('/list')
 
     },shorturl, req.session.key['token']);
 
 });
 
-// запускаем apm agent
-/*
-var apm = require('elastic-apm-node').start({
-    serviceName: 'weblinknodeserver',
-    serverUrl: 'http://localhost:8200',
-    debug: 'true',
-})
-*/
+
+
 
 //// start node server.js
 app.listen(srvPort,srvIP);
-console.log('server node.js started http://'+ srvIP +':' + srvPort, ' (API URL:', apiurl, ')');
+console.log('server node.js started ,', nodejsurl, ' (API URL:', apiurl, ')');

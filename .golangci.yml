@@ -1,3 +1,8 @@
+#The .golangci.yml file is applied locally
+#and also on the GitHub runner during the execution of the golangci-lint tool.
+#Specifically, it is applied at the point where the golangci-lint command is executed.
+# The linter reads this configuration file to determine which linters to enable,
+#their settings, and how to report issues.
 # настройки запуска
 run:
 # значение конкурентности устанавливаем по количеству CPU
@@ -10,9 +15,8 @@ run:
   tests: false
 # Пропускать папки вендора, сторонних зависимостей и т.д.
 # vendor$, third_party$, testdata$, examples$, Godeps$, builtin$
-  skip-dirs-use-default: true
-
-# список линтеров
+  issues.exclude-dirs-use-default: true
+# список линтеров golangci-lint tool
 linters:
   disable-all: true
   enable:
@@ -22,8 +26,7 @@ linters:
   # - goconst # нахождение строк, которые следует вынести в константы - funlen # детектирование слишком крупных функций
   - bodyclose # проверка на незакрытые body после чтения тела ответа
   - errcheck # проверка на обработку всех ошибок
-  - deadcode # детектирование не использованного кода
-  - exportloopref # детектирование экспорта указателя на переменную внутри цикла
+  - copyloopvar # детектирование экспорта указателя на переменную внутри цикла
 # настройки отдельных линтеров
 linters-settings:
   goimports:
@@ -31,7 +34,7 @@ linters-settings:
     local-prefixes: path/to/module
   govet:
     # проверка на использование переменных «в тени»
-    check-shadowing: true
+    shadow: true
   goconst:
   # goconst находит строки не меньше 2 символов, которые встречаются хотя бы 2 раза
     min-len: 2
@@ -40,3 +43,8 @@ linters-settings:
     # функция помечается длинной если она больше 100 строк кода либо больше 50 операций
     lines: 100
     statements: 50
+    #disable them
+  deadcode:
+    enabled: false
+  exportloopref:
+    enabled: false

@@ -1,0 +1,178 @@
+openapi: "3.0.0"
+
+info:
+  version: 1.0.0
+  title: be2_hw9 API
+  description: REST API
+  contact:
+    name: Konny
+    email: pehks1980@gmail.com
+    url: http://swagger.io
+
+servers:
+  - url: /api
+
+paths:
+  '/links':
+    post:
+      operationId: Link create view
+      description: ''
+      requestBody:
+        description: Link to add to storage
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Link'
+      responses:
+        '200':
+          description: link response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Link'
+        default:
+          description: 'Link create Error'
+
+      tags:
+        - Link
+
+  '/links/all':
+    get:
+      operationId: Links list view
+      description: ''
+      parameters: []
+
+      responses:
+        '200':
+          description: 'Link List OK'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Link'
+
+        default:
+          description: 'Link List Error'
+
+      tags:
+        - Link
+    parameters: []
+  '/shortopen/{link}':
+    get:
+      operationId: Open shortlink view
+      description: ''
+      parameters:
+        - name: link
+          in: path
+          required: true
+          schema:
+            type: string
+
+      responses:
+        '300':
+          description: 'Redir to stored URL '
+
+        default:
+          description: 'Redir Errors'
+
+      tags:
+        - Link
+    parameters: []
+  '/shortstat/{link}':
+    get:
+      operationId: Open shortlink statistics view
+      description: ''
+      parameters:
+        - name: link
+          in: path
+          required: true
+          schema:
+            type: string
+
+      responses:
+        '200':
+          description: 'Short link stats'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Link'
+
+        default:
+          description: 'Short link stats errors'
+      tags:
+        - Link
+    parameters: []
+
+  '/links/{link}':
+    put:
+      operationId: Link update view
+      description: ''
+      parameters:
+        - name: link
+          in: path
+          required: true
+          schema:
+            type: string
+
+      requestBody:
+        description: Link to add to storage
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Link'
+      responses:
+        '200':
+          description: Link update success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Link'
+        default:
+          description: Link update errors
+
+      tags:
+        - Link
+
+    delete:
+      operationId: Link delete view
+      description: ''
+      parameters:
+        - name: link
+          in: path
+          required: true
+          schema:
+            type: string
+
+      responses:
+        '200':
+          description: Link delete success
+        default:
+          description: Link delete errors
+      tags:
+        - Link
+
+
+components:
+  schemas:
+    Link:
+      type: object
+      properties:
+        uid:
+          type: string
+        url:
+          type: string
+        shorturl:
+          type: string
+        dateTime:
+          title: Создан/изменен
+          type: string
+          format: datetime
+        active:
+          type: integer
+          format: int
+        redirs:
+          type: integer
+          format: int

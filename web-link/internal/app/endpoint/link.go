@@ -10,7 +10,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/opentracing/opentracing-go"
+	"go.opentelemetry.io/otel/trace"
+
+	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/pehks1980/go_gb_be1_kurs/web-link/internal/pkg/repository"
 
@@ -22,61 +24,91 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-//  linkSvc - интерфейс сервиса со стороны http
-//  также имеет put get del crud - для работы с файлохранилищем
-//  list - list all links for uid user
-//  GetUn - open link for redir and add 1 to redir count
+// linkSvc - интерфейс сервиса со стороны http
+// также имеет put get del crud - для работы с файлохранилищем
+// list - list all links for uid user
+// GetUn - open link for redir and add 1 to redir count
 type linkSvc interface {
-	Get(uid, key string, su bool) (model.DataEl, error)
-	Put(uid, key string, value model.DataEl, su bool) error
-	Del(uid, key string, su bool) error
+	Get(ctx context.Context, uid, key string, su bool) (model.DataEl, error)
+	Put(ctx context.Context, uid, key string, value model.DataEl, su bool) error
+	Del(ctx context.Context, uid, key string, su bool) (string, error)
 	List(ctx context.Context, uid string) ([]string, error)
-	GetUn(shortlink string) (string, error)
+	GetUn(ctx context.Context, shortlink string) (string, error)
 	PutUser(value model.User) (string, error)
 	DelUser(uid string) error
 	GetUser(uid string) (model.User, error)
 	WhoAmI() uint64
 	PayUser(ctx context.Context, uidA, uidB, amount string) error
 	FindSuperUser() (string, error)
-	GetAll() (model.Data, error)
+	GetAll(ctx context.Context, uid string) (model.Data, error)
 	AuthUser(user model.User) (string, error)
 	GetAllUsers() (model.Users, error)
 }
 
+// Appsvc - struct to part which works on front API side
+type Appsvc struct {
+	linkSVC repository.RepoIf
+	Prometh PromIf
+	jTracer trace.Tracer
+}
+
+// NewAppsvc - constructs Appsvc
+func NewAppsvc(linkSVC repository.RepoIf, Prometh PromIf, jTracer trace.Tracer) *Appsvc {
+	return &Appsvc{
+		linkSVC,
+		Prometh,
+		jTracer,
+	}
+}
+
 // RegisterPublicHTTP - регистрация роутинга путей типа urls.py для обработки сервером
-func RegisterPublicHTTP(linkSvc linkSvc, linkProm PromIf, linkTracer opentracing.Tracer) *mux.Router {
+func RegisterPublicHTTP(appsvc *Appsvc) *mux.Router {
 	r := mux.NewRouter()
 	// JWT authorization
-	r.HandleFunc("/user/auth", postAuth(linkSvc, linkProm, linkTracer)).Methods(http.MethodPost)
-	r.HandleFunc("/token/refresh", postTokenRefresh(linkSvc)).Methods(http.MethodPost)
-	r.HandleFunc("/user/register", postRegister(linkSvc)).Methods(http.MethodPost)
+	r.HandleFunc("/user/auth", postAuth(appsvc.linkSVC, appsvc.Prometh, appsvc.jTracer)).Methods(http.MethodPost)
+	r.HandleFunc("/token/refresh", postTokenRefresh(appsvc.linkSVC)).Methods(http.MethodPost)
+	r.HandleFunc("/user/register", postRegister(appsvc.linkSVC)).Methods(http.MethodPost)
 	// user api (works only with pg interface)
-	r.HandleFunc("/users/all", getAllUserData(linkSvc)).Methods(http.MethodGet)
-	r.HandleFunc("/user/", getUserData(linkSvc)).Methods(http.MethodGet)
-	r.HandleFunc("/user/{uid}", getUserData(linkSvc)).Methods(http.MethodGet)
+	r.HandleFunc("/users/all", getAllUserData(appsvc.linkSVC)).Methods(http.MethodGet)
+	r.HandleFunc("/user/", getUserData(appsvc.linkSVC)).Methods(http.MethodGet)
+	r.HandleFunc("/user/{uid}", getUserData(appsvc.linkSVC)).Methods(http.MethodGet)
 
-	r.HandleFunc("/user/{uid}", putUserData(linkSvc)).Methods(http.MethodPut)
-	r.HandleFunc("/user/{uid}", delUserData(linkSvc)).Methods(http.MethodDelete)
+	r.HandleFunc("/user/{uid}", putUserData(appsvc.linkSVC)).Methods(http.MethodPut)
+	r.HandleFunc("/user/{uid}", delUserData(appsvc.linkSVC)).Methods(http.MethodDelete)
 
 	// Main function shortlinks api
-	r.HandleFunc("/shortopen/{shortlink}", getShortOpen(linkSvc, linkTracer)).Methods(http.MethodGet)
-	r.HandleFunc("/shortstat/{shortlink}", getShortStat(linkSvc, linkTracer)).Methods(http.MethodGet)
+	r.HandleFunc("/shortopen/{shortlink}", getShortOpen(appsvc.linkSVC, appsvc.jTracer)).Methods(http.MethodGet)
+	r.HandleFunc("/shortstat/{shortlink}", getShortStat(appsvc.linkSVC, appsvc.jTracer)).Methods(http.MethodGet)
 	// Links crud
-	r.HandleFunc("/links", postToLink(linkSvc, linkTracer)).Methods(http.MethodPost)
-	r.HandleFunc("/links/all", getFromLink(linkSvc, linkTracer)).Methods(http.MethodGet)
-	r.HandleFunc("/links/{shortlink}", putToLink(linkSvc, linkTracer)).Methods(http.MethodPut)
-	r.HandleFunc("/links/{shortlink}", delFromLink(linkSvc, linkTracer)).Methods(http.MethodDelete)
+	r.HandleFunc("/links", postToLink(appsvc.linkSVC, appsvc.jTracer)).Methods(http.MethodPost)
+	r.HandleFunc("/links/all", getFromLink(appsvc.linkSVC, appsvc.jTracer)).Methods(http.MethodGet)
+	r.HandleFunc("/links/{shortlink}", putToLink(appsvc.linkSVC, appsvc.jTracer)).Methods(http.MethodPut)
+	r.HandleFunc("/links/{shortlink}", delFromLink(appsvc.linkSVC, appsvc.jTracer)).Methods(http.MethodDelete)
 
 	// Prometheus metrics url path
 	r.Handle("/metrics", promhttp.Handler())
+	// kube heartbeat handler
+	r.HandleFunc("/__heartbeat__", getHeartBeat(appsvc)).Methods(http.MethodGet)
 
 	// MiddleWare first goes JWT second goes Logging
 	r.Use(JWTCheckMiddleware)
 	// Logging MiddleWare
 	r.Use(LoggingMiddleware)
 	// Prometheus Middleware
-	r.Use(PromMiddlewareFunc(linkProm))
+	r.Use(PromMiddlewareFunc(appsvc.Prometh))
 	return r
+}
+
+// getHeartBeat - kube heartbeat thing
+// appsvc - services of app -
+// 1 backend (TO-RIGHT) chain of interfaces (file/db/cache)
+// 2 promif counters (If)
+// 3 jtracer thing
+func getHeartBeat(appsvc *Appsvc) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, request *http.Request) {
+		log.Printf("__heartbeat__ OK")
+		w.WriteHeader(http.StatusOK)
+	}
 }
 
 // delUserData - del user from admin (by suid)
@@ -222,7 +254,7 @@ func getUserData(svc linkSvc) func(http.ResponseWriter, *http.Request) {
 	}
 }
 
-//postRegister - register new user
+// postRegister - register new user
 func postRegister(svc linkSvc) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, request *http.Request) {
 		//json header check
@@ -295,7 +327,7 @@ func postTokenRefresh(svc linkSvc) func(http.ResponseWriter, *http.Request) {
 }
 
 // postAuth - authenticate and give authorization token
-func postAuth(svc linkSvc, prom PromIf, tracer opentracing.Tracer) func(http.ResponseWriter, *http.Request) {
+func postAuth(svc linkSvc, prom PromIf, tracer trace.Tracer) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, request *http.Request) {
 
 		defer func() {
@@ -303,8 +335,10 @@ func postAuth(svc linkSvc, prom PromIf, tracer opentracing.Tracer) func(http.Res
 			prom.UpdateCtr()
 		}()
 
-		span, _ := opentracing.StartSpanFromContextWithTracer(request.Context(), tracer, "postAuth")
-		defer span.Finish()
+		//span, _ := opentracing.StartSpanFromContextWithTracer(request.Context(), tracer, "postAuth")
+		//defer span.Finish()
+		_, span := tracer.Start(request.Context(), "postAuth")
+		defer span.End()
 
 		//json header check
 		contentType := request.Header.Get("Content-Type")
@@ -338,6 +372,10 @@ func postAuth(svc linkSvc, prom PromIf, tracer opentracing.Tracer) func(http.Res
 				return
 			}
 			log.Printf("USER %s Logged in.\n", jsonPostUser.Name)
+
+			span.AddEvent("Event", trace.WithAttributes(
+				attribute.String("USER Got Auth Token", jsonPostUser.Name),
+			))
 			tokenAccess, _ := GenJWTWithClaims(UID, 0)
 			tokenRefresh, _ := GenJWTWithClaims(UID, 1)
 
@@ -433,11 +471,14 @@ func postAuth(svc linkSvc, prom PromIf, tracer opentracing.Tracer) func(http.Res
 }
 
 // delFromLink deletes link from api storage by shortlink
-func delFromLink(linkSvc linkSvc, tracer opentracing.Tracer) http.HandlerFunc {
+func delFromLink(linkSvc linkSvc, tracer trace.Tracer) http.HandlerFunc {
 	return func(w http.ResponseWriter, request *http.Request) {
 
-		span, ctx := opentracing.StartSpanFromContextWithTracer(request.Context(), tracer, "delFromLink")
-		defer span.Finish()
+		//span, ctx := opentracing.StartSpanFromContextWithTracer(request.Context(), tracer, "delFromLink")
+		//defer span.Finish()
+
+		ctx, span := tracer.Start(request.Context(), "delFromLink")
+		defer span.End()
 
 		checkif := linkSvc.WhoAmI()
 
@@ -477,7 +518,7 @@ func delFromLink(linkSvc linkSvc, tracer opentracing.Tracer) http.HandlerFunc {
 		}
 
 		//found key, delete it
-		err := linkSvc.Del(usefulUID, storageKey, false)
+		_, err := linkSvc.Del(ctx, usefulUID, storageKey, false)
 		if err != nil {
 			ResponseAPIError(w, 10, http.StatusBadRequest)
 			return
@@ -487,11 +528,14 @@ func delFromLink(linkSvc linkSvc, tracer opentracing.Tracer) http.HandlerFunc {
 }
 
 // putToLink updates link from api storage
-func putToLink(linkSvc linkSvc, tracer opentracing.Tracer) http.HandlerFunc {
+func putToLink(linkSvc linkSvc, tracer trace.Tracer) http.HandlerFunc {
 	return func(w http.ResponseWriter, request *http.Request) {
 
-		span, ctx := opentracing.StartSpanFromContextWithTracer(request.Context(), tracer, "putToLink")
-		defer span.Finish()
+		//span, ctx := opentracing.StartSpanFromContextWithTracer(request.Context(), tracer, "putToLink")
+		//defer span.Finish()
+
+		ctx, span := tracer.Start(request.Context(), "putToLink")
+		defer span.End()
 
 		//json header check
 		contentType := request.Header.Get("Content-Type")
@@ -520,7 +564,7 @@ func putToLink(linkSvc linkSvc, tracer opentracing.Tracer) http.HandlerFunc {
 			if suid == UID {
 				// superuser updates other user record here
 				// get uid of that user
-				dbElem, _ := linkSvc.Get(UID, shortURL, true)
+				dbElem, _ := linkSvc.Get(ctx, UID, shortURL, true)
 				usefulUID = dbElem.UID
 				flag = true
 			}
@@ -542,7 +586,7 @@ func putToLink(linkSvc linkSvc, tracer opentracing.Tracer) http.HandlerFunc {
 		element.UID = usefulUID
 		element.Active = 1
 		//looks ok, update storage
-		err = linkSvc.Put(usefulUID, element.Shorturl, element, false)
+		err = linkSvc.Put(ctx, usefulUID, element.Shorturl, element, false)
 		if err != nil {
 			ResponseAPIError(w, 9, http.StatusBadRequest)
 		}
@@ -556,11 +600,14 @@ func putToLink(linkSvc linkSvc, tracer opentracing.Tracer) http.HandlerFunc {
 }
 
 // postToLink - creates new item in api storage
-func postToLink(linkSvc linkSvc, tracer opentracing.Tracer) http.HandlerFunc {
+func postToLink(linkSvc linkSvc, tracer trace.Tracer) http.HandlerFunc {
 	return func(w http.ResponseWriter, request *http.Request) {
 
-		span, ctx := opentracing.StartSpanFromContextWithTracer(request.Context(), tracer, "postToLink")
-		defer span.Finish()
+		//span, ctx := opentracing.StartSpanFromContextWithTracer(request.Context(), tracer, "postToLink")
+		//defer span.Finish()
+
+		ctx, span := tracer.Start(request.Context(), "postToLink")
+		defer span.End()
 
 		//json header check
 		contentType := request.Header.Get("Content-Type")
@@ -629,7 +676,7 @@ func postToLink(linkSvc linkSvc, tracer opentracing.Tracer) http.HandlerFunc {
 		}
 		element.UID = UID
 		element.Active = 1
-		err = linkSvc.Put(UID, element.Shorturl, element, false)
+		err = linkSvc.Put(ctx, UID, element.Shorturl, element, false)
 		if err != nil {
 			ResponseAPIError(w, 10, http.StatusBadRequest)
 			return
@@ -646,11 +693,14 @@ func postToLink(linkSvc linkSvc, tracer opentracing.Tracer) http.HandlerFunc {
 }
 
 // getFromLink - get links list in json
-func getFromLink(linkSvc linkSvc, tracer opentracing.Tracer) http.HandlerFunc {
+func getFromLink(linkSvc linkSvc, tracer trace.Tracer) http.HandlerFunc {
 	return func(w http.ResponseWriter, request *http.Request) {
 
-		span, ctx := opentracing.StartSpanFromContextWithTracer(request.Context(), tracer, "getFromLink")
-		defer span.Finish()
+		//span, ctx := opentracing.StartSpanFromContextWithTracer(request.Context(), tracer, "getFromLink")
+		//defer span.Finish()
+
+		ctx, span := tracer.Start(request.Context(), "getFromLink")
+		defer span.End()
 
 		w.Header().Set("Content-Type", "application/json")
 
@@ -669,7 +719,7 @@ func getFromLink(linkSvc linkSvc, tracer opentracing.Tracer) http.HandlerFunc {
 			}
 			if user.Role == "USER" || user.Role == "SUPERUSER" {
 				//
-				sqlData, err3 := linkSvc.GetAll()
+				sqlData, err3 := linkSvc.GetAll(ctx, UID)
 				if err3 != nil {
 					//to do insert reply with error
 					return
@@ -706,7 +756,7 @@ func getFromLink(linkSvc linkSvc, tracer opentracing.Tracer) http.HandlerFunc {
 
 		// fill up array with data for json output
 		for _, storageKey := range storageKeys {
-			getElement, errfor := linkSvc.Get(UID, storageKey, false)
+			getElement, errfor := linkSvc.Get(ctx, UID, storageKey, false)
 			if errfor != nil {
 				ResponseAPIError(w, 10, http.StatusBadRequest)
 				return
@@ -731,11 +781,14 @@ func getFromLink(linkSvc linkSvc, tracer opentracing.Tracer) http.HandlerFunc {
 }
 
 // getShortStat - get one link from api
-func getShortStat(linkSvc linkSvc, tracer opentracing.Tracer) http.HandlerFunc {
+func getShortStat(linkSvc linkSvc, tracer trace.Tracer) http.HandlerFunc {
 	return func(w http.ResponseWriter, request *http.Request) {
 
-		span, ctx := opentracing.StartSpanFromContextWithTracer(request.Context(), tracer, "getShortStat")
-		defer span.Finish()
+		//span, ctx := opentracing.StartSpanFromContextWithTracer(request.Context(), tracer, "getShortStat")
+		//defer span.Finish()
+
+		ctx, span := tracer.Start(request.Context(), "getShortStat")
+		defer span.End()
 
 		w.Header().Set("Content-Type", "application/json")
 
@@ -751,7 +804,7 @@ func getShortStat(linkSvc linkSvc, tracer opentracing.Tracer) http.HandlerFunc {
 				params := mux.Vars(request)
 				shortURL := params["shortlink"]
 				//ignore uid
-				getElement, err := linkSvc.Get(UID, shortURL, true)
+				getElement, err := linkSvc.Get(ctx, UID, shortURL, true)
 				if err != nil {
 					ResponseAPIError(w, 10, http.StatusBadRequest)
 					return
@@ -777,7 +830,7 @@ func getShortStat(linkSvc linkSvc, tracer opentracing.Tracer) http.HandlerFunc {
 			return
 		}
 
-		getElement, err := linkSvc.Get(UID, storageKey, false)
+		getElement, err := linkSvc.Get(ctx, UID, storageKey, false)
 		if err != nil {
 			ResponseAPIError(w, 10, http.StatusBadRequest)
 			return
@@ -793,30 +846,38 @@ func getShortStat(linkSvc linkSvc, tracer opentracing.Tracer) http.HandlerFunc {
 }
 
 // getShortOpen - get link opened (unonimously)
-func getShortOpen(linkSvc linkSvc, tracer opentracing.Tracer) http.HandlerFunc {
+func getShortOpen(linkSvc linkSvc, tracer trace.Tracer) http.HandlerFunc {
 	return func(w http.ResponseWriter, request *http.Request) {
 
-		span, ctx := opentracing.StartSpanFromContextWithTracer(request.Context(), tracer, "getShortOpen")
-		defer span.Finish()
+		//span, ctx := opentracing.StartSpanFromContextWithTracer(request.Context(), tracer, "getShortOpen")
+		//defer span.Finish()
+
+		ctx, span := tracer.Start(request.Context(), "getShortOpen")
+		defer span.End()
 
 		// get data
 		// update data
 		// redir to real link
-
-		params := mux.Vars(request)
-		shortURL := params["shortlink"]
-		// GetUn retreives link and updates redir count
-		URL, err := linkSvc.GetUn(shortURL)
-		if err != nil {
-			ResponseAPIError(w, 10, http.StatusBadRequest)
-			return
-		}
-		if URL == "" {
-			ResponseAPIError(w, 404, http.StatusBadRequest)
-			return
-		}
-
 		checkif := linkSvc.WhoAmI()
+		var URL string
+		var err error
+		// in case of file repo do it and in case of db repo will do it if payment successfull
+		if checkif == 0 {
+			params := mux.Vars(request)
+			shortURL := params["shortlink"]
+			// GetUn retreives link and updates redir count++
+			URL, err = linkSvc.GetUn(ctx, shortURL)
+
+			if err != nil {
+				ResponseAPIError(w, 10, http.StatusBadRequest)
+				return
+			}
+			if URL == "" {
+				ResponseAPIError(w, 404, http.StatusBadRequest)
+				return
+			}
+		}
+
 		//db version supports payments for opening links
 		if checkif == 1 {
 			//make payment of 10.00 for the superuser account from USER who opened link
@@ -856,7 +917,21 @@ func getShortOpen(linkSvc linkSvc, tracer opentracing.Tracer) http.HandlerFunc {
 				}
 
 			} else {
-				log.Printf("user is not USER, no payment available\n")
+				log.Printf("user type is not USER, no payment available\n")
+			}
+
+			params := mux.Vars(request)
+			shortURL := params["shortlink"]
+			// GetUn retreives link and updates redir count++
+			URL, err = linkSvc.GetUn(ctx, shortURL)
+
+			if err != nil {
+				ResponseAPIError(w, 10, http.StatusBadRequest)
+				return
+			}
+			if URL == "" {
+				ResponseAPIError(w, 404, http.StatusBadRequest)
+				return
 			}
 
 			var jsonAns = Answer{

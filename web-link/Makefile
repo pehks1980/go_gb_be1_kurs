@@ -9,6 +9,9 @@ lint2:
 # exe
 build:
 	@go build ./cmd/web-link/main.go
+# fmt
+fmt:
+	@gofmt -s -w ./..
 # test filter
 test:
 	@go test -v ./...
@@ -46,4 +49,4 @@ copy_kube:
 	scp -r ../kube user@192.168.1.210:/home/user/
 
 
-.PHONY: test check build vet lint1 lint2 hooks test_cover integration_test build_arm copy_kube
+.PHONY: test check build vet fmt lint1 lint2 hooks test_cover integration_test build_arm copy_kube

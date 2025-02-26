@@ -71,9 +71,9 @@ func main() {
 	storageNameDef := flag.String("storage name", "postgres://postuser:postpassword@192.168.31.204:5432/a4",
 		"pg: 'postgres://dbuser:dbpasswd@ip_address:port/dbname'  file: 'storage.json'. It can be also set as REPO.")
 
-	redisIPDef := flag.String("Redis serv IP", "192.168.31.204:6379","It can be also set as REDISIP.")
+	redisIPDef := flag.String("Redis serv IP", "192.168.31.204:6379", "It can be also set as REDISIP.")
 
-	tracerIPDef := flag.String("Tracer serv IP", "192.168.31.204:4318","It can be also set as TRACERIP.")
+	tracerIPDef := flag.String("Tracer serv IP", "192.168.31.204:4318", "It can be also set as TRACERIP.")
 
 	//storageName := flag.String("storage name", "storage.json",
 	//	"pg: 'postgres://dbuser:dbpasswd@ip_address:port/dbname'  file: 'storage.json'")

@@ -1,3 +1,4 @@
+//go:build integration
 // +build integration
 
 package repository_test
@@ -15,7 +16,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"go.opentelemetry.io/otel/trace"
-
 )
 
 func TestIntegrationSVC(t *testing.T) {
